@@ -1421,11 +1421,24 @@ export async function checkMergeStatus(
 ): Promise<{ main_ahead_count: number; conflicting_files: string[]; base_branch: string }> {
   const mainBranch = baseBranch ?? (await detectMainBranch(worktreePath));
 
+  // Count main commits not in HEAD, excluding patch-equivalents already
+  // applied via rebase/cherry-pick. Mirrors the changed-files diff base
+  // refinement so the dialog doesn't demand a needless rebase when HEAD's
+  // history already carries main's recent commits with different SHAs.
   let mainAheadCount = 0;
   try {
-    const { stdout } = await exec('git', ['rev-list', '--count', `HEAD..${mainBranch}`], {
-      cwd: worktreePath,
-    });
+    const { stdout } = await exec(
+      'git',
+      [
+        'rev-list',
+        '--count',
+        '--cherry-pick',
+        '--right-only',
+        '--no-merges',
+        `HEAD...${mainBranch}`,
+      ],
+      { cwd: worktreePath },
+    );
     mainAheadCount = parseInt(stdout.trim(), 10) || 0;
   } catch {
     /* ignore */

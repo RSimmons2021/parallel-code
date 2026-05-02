@@ -55,6 +55,7 @@ import {
   getChangedFiles,
   getAllFileDiffs,
   getFileDiff,
+  checkMergeStatus,
 } from './git.js';
 
 type ExecFileCallback = (err: Error | null, stdout: string, stderr: string) => void;
@@ -1216,5 +1217,75 @@ describe('refineDiffBaseWithCherryPick (via getChangedFilesFromBranch)', () => {
     expect(diffCall).toBeDefined();
     // Range uses the refined parent SHA against the branch ref (not HEAD).
     expect(diffCall).toContain(`${PARENT}...feature`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// checkMergeStatus — main-ahead count uses cherry-pick filtering so rebased
+// patch-equivalent commits in main don't trigger a needless rebase prompt.
+// ---------------------------------------------------------------------------
+
+describe('checkMergeStatus (cherry-pick filtered ahead count)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('asks rev-list to count with --cherry-pick --right-only against HEAD...mainBranch', async () => {
+    const calls: string[][] = [];
+    setupMock(calls, (args, cb) => {
+      const [cmd] = args;
+      if (cmd === 'rev-list' && args.includes('--count')) {
+        return cb(null, '0\n', '');
+      }
+      return cb(null, '', '');
+    });
+
+    await checkMergeStatus(uniqueWorktreePath(), 'main');
+
+    const revListCall = calls.find((a) => a[0] === 'rev-list' && a.includes('--count'));
+    expect(revListCall).toBeDefined();
+    expect(revListCall).toContain('--cherry-pick');
+    expect(revListCall).toContain('--right-only');
+    expect(revListCall).toContain('--no-merges');
+    expect(revListCall).toContain('HEAD...main');
+  });
+
+  it('reports zero ahead when every main commit is patch-equivalent to one in HEAD', async () => {
+    const calls: string[][] = [];
+    setupMock(calls, (args, cb) => {
+      const [cmd] = args;
+      if (cmd === 'rev-list' && args.includes('--count')) {
+        // --cherry-pick filters patch-equivalents → none unique on the right.
+        return cb(null, '0\n', '');
+      }
+      return cb(null, '', '');
+    });
+
+    const result = await checkMergeStatus(uniqueWorktreePath(), 'main');
+
+    expect(result.main_ahead_count).toBe(0);
+    expect(result.conflicting_files).toEqual([]);
+    // Conflict probe must be skipped when ahead count is zero.
+    const mergeTreeCall = calls.find((a) => a[0] === 'merge-tree');
+    expect(mergeTreeCall).toBeUndefined();
+  });
+
+  it('reports the cherry-pick-filtered count when some main commits are genuinely new', async () => {
+    const calls: string[][] = [];
+    setupMock(calls, (args, cb) => {
+      const [cmd] = args;
+      if (cmd === 'rev-list' && args.includes('--count')) {
+        // 2 commits in main are unique after cherry-pick filtering.
+        return cb(null, '2\n', '');
+      }
+      if (cmd === 'merge-tree') {
+        return cb(null, '', '');
+      }
+      return cb(null, '', '');
+    });
+
+    const result = await checkMergeStatus(uniqueWorktreePath(), 'main');
+
+    expect(result.main_ahead_count).toBe(2);
   });
 });
