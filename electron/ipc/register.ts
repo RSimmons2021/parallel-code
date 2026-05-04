@@ -461,7 +461,11 @@ export function registerAllHandlers(win: BrowserWindow): void {
     validatePath(args.worktreePath, 'worktreePath');
     const baseBranch = args.baseBranch || undefined;
     if (baseBranch) validateBranchName(baseBranch, 'baseBranch');
-    return getBranchCommits(args.worktreePath, baseBranch);
+    const recentFallback =
+      typeof args.recentFallback === 'number' && args.recentFallback > 0
+        ? args.recentFallback
+        : undefined;
+    return getBranchCommits(args.worktreePath, baseBranch, recentFallback);
   });
   ipcMain.handle(IPC.GetCommitChangedFiles, (_e, args) => {
     validatePath(args.worktreePath, 'worktreePath');

@@ -56,6 +56,8 @@ const MAIN_BRANCH_TTL = 60_000; // 60s
 const DIFF_BASE_TTL = 30_000; // 30s
 const MAX_BUFFER = 10 * 1024 * 1024; // 10MB
 const STDERR_CAP = 4096; // cap for stderr buffers in spawned git processes
+/** Git's well-known empty tree SHA — used to diff the initial commit against nothing. */
+const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf899d69f82cf7202';
 
 // Sweep expired cache entries periodically so stale entries from repos that
 // are no longer queried don't accumulate (lazy deletion alone isn't enough).
@@ -1773,12 +1775,45 @@ export interface CommitInfo {
 export async function getBranchCommits(
   worktreePath: string,
   baseBranch?: string,
+  recentFallback?: number,
 ): Promise<CommitInfo[]> {
   const mergeBase = await detectMergeBase(worktreePath, 'HEAD', baseBranch);
   try {
     const { stdout } = await exec(
       'git',
       ['log', `${mergeBase}..HEAD`, '--pretty=format:%H%x00%s', '--reverse'],
+      { cwd: worktreePath, maxBuffer: MAX_BUFFER },
+    );
+    if (!stdout.trim()) {
+      // No branch-specific commits (e.g. direct mode on main). If a recent
+      // fallback count was requested, list the last N commits from HEAD so
+      // the user can still navigate commit history.
+      if (recentFallback && recentFallback > 0) {
+        return getRecentCommits(worktreePath, recentFallback);
+      }
+      return [];
+    }
+    return stdout
+      .trim()
+      .split('\n')
+      .map((line) => {
+        const sep = line.indexOf('\0');
+        return {
+          hash: sep >= 0 ? line.slice(0, sep) : line,
+          message: sep >= 0 ? line.slice(sep + 1) : '',
+        };
+      });
+  } catch (err) {
+    logDebug('git', `getBranchCommits failed for ${worktreePath}: ${err}`);
+    return [];
+  }
+}
+
+async function getRecentCommits(worktreePath: string, count: number): Promise<CommitInfo[]> {
+  try {
+    const { stdout } = await exec(
+      'git',
+      ['log', `--max-count=${count}`, '--pretty=format:%H%x00%s', '--reverse'],
       { cwd: worktreePath, maxBuffer: MAX_BUFFER },
     );
     if (!stdout.trim()) return [];
@@ -1792,7 +1827,8 @@ export async function getBranchCommits(
           message: sep >= 0 ? line.slice(sep + 1) : '',
         };
       });
-  } catch {
+  } catch (err) {
+    logDebug('git', `getRecentCommits failed for ${worktreePath}: ${err}`);
     return [];
   }
 }
@@ -1810,7 +1846,18 @@ export async function getCommitChangedFiles(
     );
     diffStr = stdout;
   } catch {
-    return [];
+    // Likely the initial commit (no parent). Diff against the empty tree.
+    try {
+      const { stdout } = await exec(
+        'git',
+        ['diff', '--raw', '--numstat', `${EMPTY_TREE}..${commitHash}`],
+        { cwd: worktreePath, maxBuffer: MAX_BUFFER },
+      );
+      diffStr = stdout;
+    } catch (err) {
+      logDebug('git', `getCommitChangedFiles failed for ${commitHash} in ${worktreePath}: ${err}`);
+      return [];
+    }
   }
 
   const { statusMap, numstatMap } = parseDiffRawNumstat(diffStr);
@@ -1837,6 +1884,16 @@ export async function getCommitDiffs(worktreePath: string, commitHash: string): 
     });
     return stdout;
   } catch {
-    return '';
+    // Likely the initial commit (no parent). Diff against the empty tree.
+    try {
+      const { stdout } = await exec('git', ['diff', '-U3', `${EMPTY_TREE}..${commitHash}`], {
+        cwd: worktreePath,
+        maxBuffer: MAX_BUFFER,
+      });
+      return stdout;
+    } catch (err) {
+      logDebug('git', `getCommitDiffs failed for ${commitHash} in ${worktreePath}: ${err}`);
+      return '';
+    }
   }
 }

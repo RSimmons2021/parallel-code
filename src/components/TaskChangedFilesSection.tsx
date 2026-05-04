@@ -24,12 +24,14 @@ interface TaskChangedFilesSectionProps {
 
 export function TaskChangedFilesSection(props: TaskChangedFilesSectionProps) {
   const coverageReportPath = () => getProject(props.task.projectId)?.coverageReportPath;
+  const hasCommitNav = () =>
+    props.task.gitIsolation === 'worktree' || props.task.gitIsolation === 'direct';
   const selectedCommitInfo = () =>
-    isCommitHashSelection(props.selectedCommit) && props.task.gitIsolation === 'worktree'
+    isCommitHashSelection(props.selectedCommit) && hasCommitNav()
       ? props.commitList.find((c) => c.hash === props.selectedCommit)
       : undefined;
   const showUncommittedBanner = () =>
-    isUncommittedSelection(props.selectedCommit) && props.task.gitIsolation === 'worktree';
+    isUncommittedSelection(props.selectedCommit) && hasCommitNav();
 
   let changedFilesRef: HTMLDivElement | undefined;
 
@@ -78,7 +80,7 @@ export function TaskChangedFilesSection(props: TaskChangedFilesSectionProps) {
       >
         <span style={{ 'flex-shrink': '0' }}>Changed Files</span>
         <span style={{ flex: '1' }} />
-        <Show when={props.task.gitIsolation === 'worktree'}>
+        <Show when={hasCommitNav()}>
           <CommitNavBar
             commits={props.commitList}
             selectedCommitHash={props.selectedCommit}

@@ -164,12 +164,15 @@ export function TaskPanel(props: TaskPanelProps) {
     }
   });
 
-  // Poll for branch commits for all worktree-isolated tasks (not just the active one),
-  // so CommitNavBar shows correct state regardless of which column is focused.
+  // Poll for branch commits for worktree-isolated and direct-mode tasks (not just
+  // the active one), so CommitNavBar shows correct state regardless of which column
+  // is focused. For direct mode, request recent commits as fallback since there are
+  // no branch-specific commits when working on main.
   createEffect(() => {
     const worktreePath = props.task.worktreePath;
     const baseBranch = props.task.baseBranch;
-    if (props.task.gitIsolation !== 'worktree') return;
+    const isolation = props.task.gitIsolation;
+    if (isolation !== 'worktree' && isolation !== 'direct') return;
     let cancelled = false;
 
     async function fetchCommits() {
@@ -177,6 +180,7 @@ export function TaskPanel(props: TaskPanelProps) {
         const result = await invoke<CommitInfo[]>(IPC.GetBranchCommits, {
           worktreePath,
           baseBranch,
+          ...(isolation === 'direct' ? { recentFallback: 50 } : {}),
         });
         if (cancelled) return;
         batch(() => {

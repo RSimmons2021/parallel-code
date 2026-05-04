@@ -300,7 +300,12 @@ function DiffViewerContent(props: DiffViewerDialogProps) {
           </span>
         </div>
 
-        <Show when={props.worktreePath && props.gitIsolation === 'worktree'}>
+        <Show
+          when={
+            props.worktreePath &&
+            (props.gitIsolation === 'worktree' || props.gitIsolation === 'direct')
+          }
+        >
           <CommitNavBar
             commits={props.commitList ?? []}
             selectedCommitHash={props.selectedCommit ?? null}
