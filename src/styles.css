@@ -366,6 +366,48 @@ html[data-look='zenburnesque'] {
   --task-panel-bg: #2e2d2a;
 }
 
+/* Catppuccin Mocha — official Catppuccin palette
+   (https://github.com/catppuccin/catppuccin). Surfaces follow the
+   Crust → Mantle → Base ladder; mauve serves as the signature accent
+   with sapphire links. */
+html[data-look='catppuccin-mocha'] {
+  --bg: radial-gradient(120% 120% at 18% 0%, #2b223e 0%, #1a1a28 55%, #11111b 100%);
+  --bg-elevated: #1e1e2e;
+  --bg-input: #313244;
+  --bg-hover: #45475a;
+  --bg-selected: #3b2f5a;
+  --bg-selected-subtle: #3b2f5a40;
+  --border: #45475a;
+  --border-subtle: #313244;
+  --border-focus: #cba6f7;
+  --fg: #cdd6f4;
+  --fg-muted: #a6adc8;
+  --fg-subtle: #7f849c;
+  --accent: #cba6f7;
+  --accent-hover: #d6b8fa;
+  --accent-text: #1e1e2e;
+  --link: #74c7ec;
+  --success: #a6e3a1;
+  --error: #f38ba8;
+  --warning: #f9e2af;
+  --island-bg: #1e1e2e;
+  --island-border: #45475a;
+  --task-container-bg: #181825;
+  --task-panel-bg: #1e1e2e;
+}
+
+/* Catppuccin Mocha leans on the surface ladder rather than chrome — drop
+   column borders and the active-column accent glow. Inactive opacity still
+   distinguishes the focused column. */
+html[data-look='catppuccin-mocha'] .task-column,
+html[data-look='catppuccin-mocha'] .task-column.active {
+  border-color: transparent !important;
+}
+
+html[data-look='catppuccin-mocha'] .task-column.active {
+  box-shadow: var(--shadow-soft) !important;
+}
+
 /* Islands Dark — JetBrains 2025.3 inspired: lighter tinted frame, darker uniform island panels.
    Frame uses a color→gray radial reminiscent of JetBrains' "Project Gradient". */
 html[data-look='islands-dark'] {

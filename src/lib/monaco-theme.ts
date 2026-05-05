@@ -77,6 +77,14 @@ const presetColors: Record<LookPreset, PresetColors> = {
     border: '#484640',
     accent: '#cc9393',
   },
+  'catppuccin-mocha': {
+    bgElevated: '#1e1e2e',
+    fg: '#cdd6f4',
+    fgMuted: '#a6adc8',
+    fgSubtle: '#7f849c',
+    border: '#45475a',
+    accent: '#cba6f7',
+  },
   'islands-dark': {
     bgElevated: '#181a1d',
     fg: '#bcbec4',

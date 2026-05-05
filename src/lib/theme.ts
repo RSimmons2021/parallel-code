@@ -49,6 +49,7 @@ const terminalBackground: Record<LookPreset, string> = {
   glacier: '#232e3a',
   minimal: '#252520',
   zenburnesque: '#2e2d2a',
+  'catppuccin-mocha': '#1e1e2e',
   'islands-dark': '#181a1d',
   'islands-light': '#ffffff',
   workbench: '#1f1f1f',
