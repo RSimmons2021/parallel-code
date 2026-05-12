@@ -198,6 +198,7 @@ export function TaskAITerminal(props: TaskAITerminalProps) {
         onClick={() => setTaskFocusedPanel(props.task.id, aiTerminalPanelId(props.selectedAgentId))}
       >
         <InfoBar
+          compact
           allowOverflow
           title={props.task.lastPrompt || infoBarStatus().title}
           onDblClick={() => {

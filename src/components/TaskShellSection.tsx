@@ -198,7 +198,7 @@ export function TaskShellSection(props: TaskShellSectionProps) {
             overflow: 'hidden',
             background: theme.taskContainerBg,
             gap: '6px',
-            'margin-top': '6px',
+            'margin-top': '2px',
           }}
         >
           <For each={props.task.shellAgentIds}>

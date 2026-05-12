@@ -626,7 +626,7 @@ html[data-look^='islands-']
 html[data-look^='islands-'] .task-column.focus-mode .shell-terminals-row {
   background: transparent !important;
   gap: 5px !important;
-  margin-top: 5px !important;
+  margin-top: 2px !important;
 }
 
 html[data-look^='islands-']

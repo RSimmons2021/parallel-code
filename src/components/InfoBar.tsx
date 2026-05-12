@@ -9,9 +9,12 @@ interface InfoBarProps {
   title?: string;
   class?: string;
   allowOverflow?: boolean;
+  compact?: boolean;
 }
 
 export function InfoBar(props: InfoBarProps) {
+  const height = () => (props.compact ? '24px' : '28px');
+
   return (
     <div
       class={props.class}
@@ -19,8 +22,8 @@ export function InfoBar(props: InfoBarProps) {
       onClick={(e) => props.onClick?.(e)}
       onDblClick={() => props.onDblClick?.()}
       style={{
-        height: '28px',
-        'min-height': '28px',
+        height: height(),
+        'min-height': height(),
         display: 'flex',
         'align-items': 'center',
         padding: '0 10px',
