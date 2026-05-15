@@ -5,32 +5,54 @@ import { Dialog } from './Dialog';
 import { store } from '../store/core';
 import { startRemoteAccess, stopRemoteAccess, refreshRemoteStatus } from '../store/remote';
 import { theme } from '../lib/theme';
+import type { RemoteAccess } from '../store/types';
 
 type NetworkMode = 'wifi' | 'tailscale';
+type RemoteAccessUrls = Pick<RemoteAccess, 'enabled' | 'url' | 'wifiUrl' | 'tailscaleUrl'>;
 
 interface ConnectPhoneModalProps {
   open: boolean;
   onClose: () => void;
 }
 
+export function connectionUrlForMode(
+  remoteAccess: RemoteAccessUrls,
+  networkMode: NetworkMode,
+): string | null {
+  if (!remoteAccess.enabled) return null;
+  const modeUrl = networkMode === 'tailscale' ? remoteAccess.tailscaleUrl : remoteAccess.wifiUrl;
+  return modeUrl ?? remoteAccess.url;
+}
+
+export function availableNetworkModeFor(
+  remoteAccess: RemoteAccessUrls,
+  currentMode: NetworkMode,
+): NetworkMode {
+  if (currentMode === 'wifi' && remoteAccess.wifiUrl) return 'wifi';
+  if (currentMode === 'tailscale' && remoteAccess.tailscaleUrl) return 'tailscale';
+  if (remoteAccess.wifiUrl) return 'wifi';
+  if (remoteAccess.tailscaleUrl) return 'tailscale';
+  return currentMode;
+}
+
 export function ConnectPhoneModal(props: ConnectPhoneModalProps) {
   const [qrDataUrl, setQrDataUrl] = createSignal<string | null>(null);
+  const [qrError, setQrError] = createSignal<string | null>(null);
   const [starting, setStarting] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [copied, setCopied] = createSignal(false);
   const [mode, setMode] = createSignal<NetworkMode>('wifi');
   let stopPolling: (() => void) | undefined;
   let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+  let qrRequestId = 0;
   onCleanup(() => {
     if (copiedTimer !== undefined) clearTimeout(copiedTimer);
+    qrRequestId++;
   });
 
-  const activeUrl = createMemo(() => {
-    if (!store.remoteAccess.enabled) return null;
-    return mode() === 'tailscale' ? store.remoteAccess.tailscaleUrl : store.remoteAccess.wifiUrl;
-  });
+  const activeUrl = createMemo(() => connectionUrlForMode(store.remoteAccess, mode()));
 
-  async function generateQr(url: string) {
+  async function generateQr(url: string, requestId: number) {
     try {
       const mod = await import('qrcode');
       // qrcode is CJS — Vite dev wraps it as .default only, prod adds named re-exports
@@ -40,20 +62,30 @@ export function ConnectPhoneModal(props: ConnectPhoneModalProps) {
         margin: 2,
         color: { dark: '#000000', light: '#ffffff' },
       });
+      if (requestId !== qrRequestId) return;
       setQrDataUrl(dataUrl);
+      setQrError(null);
     } catch (err) {
+      if (requestId !== qrRequestId) return;
       console.error('[ConnectPhoneModal] QR generation failed:', err);
       setQrDataUrl(null);
+      setQrError('QR code unavailable');
     }
   }
 
-  // Regenerate QR when mode changes
+  // Regenerate QR when the shown connection URL changes.
   createEffect(() => {
     const url = activeUrl();
-    if (url) {
-      setQrDataUrl(null); // clear stale QR immediately
-      generateQr(url);
+    if (!props.open || !url) {
+      qrRequestId++;
+      setQrDataUrl(null);
+      setQrError(null);
+      return;
     }
+    const requestId = ++qrRequestId;
+    setQrDataUrl(null);
+    setQrError(null);
+    generateQr(url, requestId);
   });
 
   // Focus the dialog panel when it opens (Dialog doesn't auto-focus)
@@ -75,10 +107,17 @@ export function ConnectPhoneModal(props: ConnectPhoneModalProps) {
       startRemoteAccess()
         .then((result) => {
           setStarting(false);
-          // Default to wifi if available, otherwise tailscale
-          setMode(result.wifiUrl ? 'wifi' : 'tailscale');
-          const url = result.wifiUrl ?? result.tailscaleUrl ?? result.url;
-          generateQr(url);
+          setMode(
+            availableNetworkModeFor(
+              {
+                enabled: true,
+                url: result.url,
+                wifiUrl: result.wifiUrl,
+                tailscaleUrl: result.tailscaleUrl,
+              },
+              untrack(mode),
+            ),
+          );
         })
         .catch((err: unknown) => {
           setStarting(false);
@@ -86,17 +125,7 @@ export function ConnectPhoneModal(props: ConnectPhoneModalProps) {
         });
     } else {
       // Re-derive mode if network changed since last open
-      if (mode() === 'wifi' && !store.remoteAccess.wifiUrl && store.remoteAccess.tailscaleUrl) {
-        setMode('tailscale');
-      } else if (
-        mode() === 'tailscale' &&
-        !store.remoteAccess.tailscaleUrl &&
-        store.remoteAccess.wifiUrl
-      ) {
-        setMode('wifi');
-      }
-      const url = activeUrl();
-      if (url) generateQr(url);
+      setMode(availableNetworkModeFor(store.remoteAccess, mode()));
     }
 
     // Poll connected clients count while modal is open
@@ -224,15 +253,43 @@ export function ConnectPhoneModal(props: ConnectPhoneModalProps) {
         </div>
 
         {/* QR Code */}
-        <Show when={qrDataUrl()}>
-          {(url) => (
-            <img
-              src={url()}
-              alt="Connection QR code"
-              style={{ width: '200px', height: '200px', 'border-radius': '8px' }}
-            />
-          )}
-        </Show>
+        <div
+          style={{
+            width: '200px',
+            height: '200px',
+            'border-radius': '8px',
+            background: '#ffffff',
+            display: 'flex',
+            'align-items': 'center',
+            'justify-content': 'center',
+            overflow: 'hidden',
+          }}
+        >
+          <Show
+            when={qrDataUrl()}
+            fallback={
+              <span
+                aria-live="polite"
+                style={{
+                  color: '#3f3f46',
+                  'font-size': '12px',
+                  'text-align': 'center',
+                  padding: '16px',
+                }}
+              >
+                {qrError() ?? 'Generating QR code...'}
+              </span>
+            }
+          >
+            {(url) => (
+              <img
+                src={url()}
+                alt="Connection QR code"
+                style={{ width: '200px', height: '200px' }}
+              />
+            )}
+          </Show>
+        </div>
 
         {/* URL */}
         <div
@@ -252,7 +309,7 @@ export function ConnectPhoneModal(props: ConnectPhoneModalProps) {
           onClick={handleCopyUrl}
           title="Click to copy"
         >
-          {activeUrl() ?? store.remoteAccess.url}
+          {activeUrl()}
         </div>
 
         <Show when={copied()}>
