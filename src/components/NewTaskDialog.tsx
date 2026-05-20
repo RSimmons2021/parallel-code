@@ -1,4 +1,4 @@
-import { createSignal, createEffect, createUniqueId, Show, For, onCleanup } from 'solid-js';
+import { createSignal, createEffect, createUniqueId, Show, onCleanup } from 'solid-js';
 import { Dialog } from './Dialog';
 import { invoke } from '../lib/ipc';
 import { IPC } from '../../electron/ipc/channels';
@@ -28,6 +28,7 @@ import { theme, sectionLabelStyle, bannerStyle } from '../lib/theme';
 import { isMac } from '../lib/platform';
 import { AgentSelector } from './AgentSelector';
 import { BranchPrefixField } from './BranchPrefixField';
+import { BranchCombobox } from './BranchCombobox';
 import { ProjectSelect } from './ProjectSelect';
 import { SymlinkDirPicker } from './SymlinkDirPicker';
 import type { AgentDef } from '../ipc/types';
@@ -87,6 +88,7 @@ export function NewTaskDialog(props: NewTaskDialogProps) {
   const [branchPrefix, setBranchPrefix] = createSignal('');
   let promptRef!: HTMLTextAreaElement;
   const titleId = createUniqueId();
+  const branchInputId = createUniqueId();
   let formRef!: HTMLFormElement;
   let buildOutputRef!: HTMLPreElement;
 
@@ -795,7 +797,7 @@ export function NewTaskDialog(props: NewTaskDialogProps) {
               data-nav-field="base-branch"
               style={{ display: 'flex', 'flex-direction': 'column', gap: '8px' }}
             >
-              <label style={sectionLabelStyle}>
+              <label for={branchInputId} style={sectionLabelStyle}>
                 {gitIsolation() === 'worktree' ? 'Base branch' : 'Branch'}
                 <Show when={branchesLoading()}>
                   {' '}
@@ -806,25 +808,13 @@ export function NewTaskDialog(props: NewTaskDialogProps) {
                   />
                 </Show>
               </label>
-              <select
-                class="input-field"
+              <BranchCombobox
+                id={branchInputId}
+                branches={branches()}
                 value={baseBranch()}
-                onChange={(e) => setBaseBranch(e.currentTarget.value)}
-                disabled={branchesLoading()}
-                style={{
-                  background: theme.bgInput,
-                  border: `1px solid ${theme.border}`,
-                  'border-radius': '8px',
-                  padding: '10px 14px',
-                  color: theme.fg,
-                  'font-size': '14px',
-                  'font-family': "'JetBrains Mono', monospace",
-                  outline: 'none',
-                  opacity: branchesLoading() ? '0.5' : '1',
-                }}
-              >
-                <For each={branches()}>{(b) => <option value={b}>{b}</option>}</For>
-              </select>
+                onChange={setBaseBranch}
+                loading={branchesLoading()}
+              />
             </div>
           </Show>
 
