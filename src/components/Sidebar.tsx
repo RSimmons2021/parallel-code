@@ -20,6 +20,7 @@ import {
   getPanelUserSize,
   setPanelUserSize,
   toggleSettingsDialog,
+  setProjectsCollapsed,
   uncollapseTask,
   isProjectMissing,
   showNotification,
@@ -439,16 +440,50 @@ export function Sidebar() {
               padding: '0 2px',
             }}
           >
-            <label
+            <button
+              type="button"
+              onClick={() => setProjectsCollapsed(!store.projectsCollapsed)}
+              aria-expanded={!store.projectsCollapsed}
+              aria-controls="sidebar-projects-list"
+              title={store.projectsCollapsed ? 'Expand projects' : 'Collapse projects'}
               style={{
-                'font-size': sf(12),
+                display: 'flex',
+                'align-items': 'center',
+                gap: '4px',
+                flex: '1',
+                'min-width': '0',
+                background: 'transparent',
+                border: 'none',
+                padding: '2px 0',
+                margin: '0',
+                cursor: 'pointer',
                 color: theme.fgMuted,
-                'text-transform': 'uppercase',
-                'letter-spacing': '0.05em',
               }}
             >
-              Projects
-            </label>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                aria-hidden="true"
+                style={{
+                  'flex-shrink': '0',
+                  transform: store.projectsCollapsed ? 'rotate(-90deg)' : 'none',
+                  transition: 'transform 0.15s ease',
+                }}
+              >
+                <path d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" />
+              </svg>
+              <span
+                style={{
+                  'font-size': sf(12),
+                  'text-transform': 'uppercase',
+                  'letter-spacing': '0.05em',
+                }}
+              >
+                Projects
+              </span>
+            </button>
             <IconButton
               icon={
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -462,110 +497,113 @@ export function Sidebar() {
           </div>
 
           {/* Scrollable project list */}
-          <div
-            style={{
-              display: 'flex',
-              'flex-direction': 'column',
-              gap: '6px',
-              flex: '0 1 auto',
-              'min-height': '0',
-              'max-height': projectListMaxHeight(),
-              'overflow-y': 'auto',
-            }}
-          >
-            <For each={store.projects}>
-              {(project) => (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  data-project-id={project.id}
-                  onClick={() => setEditingProject(project)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') setEditingProject(project);
-                  }}
-                  style={{
-                    display: 'flex',
-                    'align-items': 'center',
-                    gap: '6px',
-                    padding: '4px 6px',
-                    'border-radius': '6px',
-                    background: isProjectMissing(project.id)
-                      ? `color-mix(in srgb, ${theme.warning} 8%, ${theme.bgInput})`
-                      : theme.bgInput,
-                    'font-size': sf(12),
-                    cursor: 'pointer',
-                    border:
-                      store.sidebarFocused && store.sidebarFocusedProjectId === project.id
-                        ? `1.5px solid var(--border-focus)`
-                        : '1.5px solid transparent',
-                    'flex-shrink': '0',
-                  }}
-                >
+          <Show when={!store.projectsCollapsed}>
+            <div
+              id="sidebar-projects-list"
+              style={{
+                display: 'flex',
+                'flex-direction': 'column',
+                gap: '6px',
+                flex: '0 1 auto',
+                'min-height': '0',
+                'max-height': projectListMaxHeight(),
+                'overflow-y': 'auto',
+              }}
+            >
+              <For each={store.projects}>
+                {(project) => (
                   <div
-                    style={{
-                      width: '8px',
-                      height: '8px',
-                      'border-radius': '50%',
-                      background: project.color,
-                      'flex-shrink': '0',
+                    role="button"
+                    tabIndex={0}
+                    data-project-id={project.id}
+                    onClick={() => setEditingProject(project)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') setEditingProject(project);
                     }}
-                  />
-                  <div style={{ flex: '1', 'min-width': '0', overflow: 'hidden' }}>
-                    <div
-                      style={{
-                        color: theme.fg,
-                        'font-weight': '500',
-                        'white-space': 'nowrap',
-                        overflow: 'hidden',
-                        'text-overflow': 'ellipsis',
-                      }}
-                    >
-                      {project.name}
-                    </div>
-                    <div
-                      style={{
-                        color: isProjectMissing(project.id) ? theme.warning : theme.fgSubtle,
-                        'font-size': sf(11),
-                        'white-space': 'nowrap',
-                        overflow: 'hidden',
-                        'text-overflow': 'ellipsis',
-                      }}
-                    >
-                      {isProjectMissing(project.id)
-                        ? 'Folder not found'
-                        : abbreviatePath(project.path)}
-                    </div>
-                  </div>
-                  <button
-                    class="icon-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setConfirmRemove(project.id);
-                    }}
-                    title="Remove project"
                     style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: theme.fgSubtle,
+                      display: 'flex',
+                      'align-items': 'center',
+                      gap: '6px',
+                      padding: '4px 6px',
+                      'border-radius': '6px',
+                      background: isProjectMissing(project.id)
+                        ? `color-mix(in srgb, ${theme.warning} 8%, ${theme.bgInput})`
+                        : theme.bgInput,
+                      'font-size': sf(12),
                       cursor: 'pointer',
-                      'font-size': sf(13),
-                      'line-height': '1',
-                      padding: '0 2px',
+                      border:
+                        store.sidebarFocused && store.sidebarFocusedProjectId === project.id
+                          ? `1.5px solid var(--border-focus)`
+                          : '1.5px solid transparent',
                       'flex-shrink': '0',
                     }}
                   >
-                    &times;
-                  </button>
-                </div>
-              )}
-            </For>
+                    <div
+                      style={{
+                        width: '8px',
+                        height: '8px',
+                        'border-radius': '50%',
+                        background: project.color,
+                        'flex-shrink': '0',
+                      }}
+                    />
+                    <div style={{ flex: '1', 'min-width': '0', overflow: 'hidden' }}>
+                      <div
+                        style={{
+                          color: theme.fg,
+                          'font-weight': '500',
+                          'white-space': 'nowrap',
+                          overflow: 'hidden',
+                          'text-overflow': 'ellipsis',
+                        }}
+                      >
+                        {project.name}
+                      </div>
+                      <div
+                        style={{
+                          color: isProjectMissing(project.id) ? theme.warning : theme.fgSubtle,
+                          'font-size': sf(11),
+                          'white-space': 'nowrap',
+                          overflow: 'hidden',
+                          'text-overflow': 'ellipsis',
+                        }}
+                      >
+                        {isProjectMissing(project.id)
+                          ? 'Folder not found'
+                          : abbreviatePath(project.path)}
+                      </div>
+                    </div>
+                    <button
+                      class="icon-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmRemove(project.id);
+                      }}
+                      title="Remove project"
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: theme.fgSubtle,
+                        cursor: 'pointer',
+                        'font-size': sf(13),
+                        'line-height': '1',
+                        padding: '0 2px',
+                        'flex-shrink': '0',
+                      }}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                )}
+              </For>
 
-            <Show when={store.projects.length === 0}>
-              <span style={{ 'font-size': sf(11), color: theme.fgSubtle, padding: '0 2px' }}>
-                No projects linked yet.
-              </span>
-            </Show>
-          </div>
+              <Show when={store.projects.length === 0}>
+                <span style={{ 'font-size': sf(11), color: theme.fgSubtle, padding: '0 2px' }}>
+                  No projects linked yet.
+                </span>
+              </Show>
+            </div>
+          </Show>
         </div>
 
         <div style={{ height: '1px', background: theme.border }} />

@@ -206,6 +206,7 @@ export interface PersistedState {
   showSteps?: boolean;
   showSidebarTips?: boolean;
   showSidebarProgress?: boolean;
+  projectsCollapsed?: boolean;
   desktopNotificationsEnabled?: boolean;
   inactiveColumnOpacity?: number;
   editorCommand?: string;
@@ -299,6 +300,7 @@ export interface AppStore {
   showSteps: boolean;
   showSidebarTips: boolean;
   showSidebarProgress: boolean;
+  projectsCollapsed: boolean;
   desktopNotificationsEnabled: boolean;
   inactiveColumnOpacity: number;
   editorCommand: string;

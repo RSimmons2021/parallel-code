@@ -368,3 +368,41 @@ describe('coordinator control hint persistence', () => {
     expect(store.coordinatorControlHintDismissed).toBe(false);
   });
 });
+
+describe('projects section collapsed persistence', () => {
+  it('defaults to expanded when not in saved state', async () => {
+    setStore('projectsCollapsed', true);
+    mockInvoke.mockResolvedValueOnce(basePayload());
+
+    await loadState();
+
+    expect(store.projectsCollapsed).toBe(false);
+  });
+
+  it('restores projectsCollapsed=true from saved state', async () => {
+    mockInvoke.mockResolvedValueOnce(basePayload({ projectsCollapsed: true }));
+
+    await loadState();
+
+    expect(store.projectsCollapsed).toBe(true);
+  });
+
+  it('ignores a non-boolean projectsCollapsed value', async () => {
+    setStore('projectsCollapsed', true);
+    mockInvoke.mockResolvedValueOnce(basePayload({ projectsCollapsed: 'yes' }));
+
+    await loadState();
+
+    expect(store.projectsCollapsed).toBe(false);
+  });
+
+  it('persists the collapsed flag through saveState', async () => {
+    setStore('projectsCollapsed', true);
+    mockInvoke.mockResolvedValueOnce(undefined);
+
+    await saveState();
+
+    const saved = JSON.parse(mockInvoke.mock.calls[0][1].json);
+    expect(saved.projectsCollapsed).toBe(true);
+  });
+});
