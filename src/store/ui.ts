@@ -178,6 +178,10 @@ export function setShowSidebarProgress(show: boolean): void {
   setStore('showSidebarProgress', show);
 }
 
+export function setProjectsCollapsed(collapsed: boolean): void {
+  setStore('projectsCollapsed', collapsed);
+}
+
 export function setShowPromptInput(show: boolean): void {
   setStore('showPromptInput', show);
 }
