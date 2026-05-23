@@ -186,10 +186,7 @@ export function TaskAITerminal(props: TaskAITerminalProps) {
   return (
     <>
       <div
-        class="focusable-panel shell-terminal-container"
-        data-panel-focused={
-          isPanelFocused(props.task.id, aiTerminalPanelId(props.selectedAgentId)) ? 'true' : 'false'
-        }
+        class="shell-terminal-container"
         style={{
           height: '100%',
           position: 'relative',
@@ -333,7 +330,6 @@ export function TaskAITerminal(props: TaskAITerminalProps) {
               <AgentTerminalPane
                 task={props.task}
                 agentId={agentId}
-                selectedAgentId={props.selectedAgentId}
                 canClose={props.task.agentIds.length > 1}
                 onSelect={() => selectAgent(agentId)}
                 onFileLink={handleFileLink}
@@ -476,7 +472,6 @@ function AddAgentMenu(props: { taskId: string }) {
 function AgentTerminalPane(props: {
   task: Task;
   agentId: string;
-  selectedAgentId: string;
   canClose: boolean;
   onSelect: () => void;
   onFileLink: (filePath: string) => void;
@@ -490,7 +485,6 @@ function AgentTerminalPane(props: {
 
   const dockerOverlayLabel = () => getTaskDockerOverlayLabel(props.task.dockerSource);
   const agent = () => store.agents[props.agentId];
-  const selected = () => props.selectedAgentId === props.agentId;
 
   return (
     <div
@@ -503,7 +497,7 @@ function AgentTerminalPane(props: {
         'min-width': props.canClose ? '260px' : '0',
         overflow: 'hidden',
         position: 'relative',
-        display: selected() ? 'flex' : 'none',
+        display: 'flex',
         'flex-direction': 'column',
         background: theme.taskPanelBg,
         border: '1px solid transparent',
