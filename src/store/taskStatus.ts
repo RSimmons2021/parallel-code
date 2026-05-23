@@ -878,8 +878,6 @@ export function getTaskDotStatus(taskId: string): TaskDotStatus {
   const task = store.tasks[taskId];
   if (!task) return 'waiting';
 
-  if (task.needsReview) return 'review';
-
   const steps = task.stepsContent;
   if (steps && steps.length > 0) {
     const latest = steps[steps.length - 1];
@@ -889,6 +887,8 @@ export function getTaskDotStatus(taskId: string): TaskDotStatus {
   const active = activeAgents(); // reactive read
   const hasActive = hasRunningTaskActivity(taskId, (id) => active.has(id));
   if (hasActive) return 'busy';
+
+  if (task.needsReview) return 'review';
 
   if (task.gitIsolation === 'none') return 'waiting';
   if (isTaskReady(taskId)) return 'ready';
