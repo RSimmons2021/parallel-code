@@ -14,7 +14,12 @@ import { resolvedBindings } from '../store/keybindings';
 import { matchesKeyEvent } from '../lib/keybindings';
 import { store, setTaskLastInputAt, retryTaskMcpStartup } from '../store/store';
 import { warn as logWarn } from '../lib/log';
-import { registerTerminal, unregisterTerminal, markDirty } from '../lib/terminalFitManager';
+import {
+  registerTerminal,
+  unregisterTerminal,
+  markDirty,
+  redrawTerminal,
+} from '../lib/terminalFitManager';
 import { dataTransferToShellArgs, escapePath } from '../lib/terminalDrop';
 import { cleanCopiedTerminalText } from '../lib/copy-text';
 import { computeDisableStdin } from '../lib/terminalDisableStdin';
@@ -618,6 +623,23 @@ export function TerminalView(props: TerminalViewProps) {
       if (!term) return;
       term.options.cursorBlink = props.isFocused === true;
     });
+
+    // Force a clean repaint when this pane returns to the foreground. In focus
+    // mode inactive panes are hidden with visibility:hidden (so the
+    // IntersectionObserver in terminalFitManager never fires), and a WebGL
+    // terminal whose GPU surface was throttled while backgrounded can come
+    // back with a corrupt glyph atlas. Redraw on the hidden→visible edge so
+    // foregrounding reliably clears the corruption rather than "sometimes".
+    // macOS-only (issue #121): never reported on Linux, so Linux skips the
+    // reactive subscription and the repaints entirely.
+    if (isMac) {
+      let prevVisible: boolean | undefined;
+      createEffect(() => {
+        const visible = !store.focusMode || store.activeTaskId === taskId;
+        if (prevVisible === false && visible) redrawTerminal(agentId);
+        prevVisible = visible;
+      });
+    }
 
     // Load WebGL addon for all terminals. On context loss (e.g. too many
     // WebGL contexts), the terminal gracefully falls back to the DOM renderer.
