@@ -113,3 +113,30 @@ export function markDirty(id: string): void {
     scheduleFlush();
   }
 }
+
+/**
+ * Force a clean repaint of a terminal: discard the renderer's glyph texture
+ * atlas, then mark every row dirty so the next frame re-rasterizes from a
+ * fresh atlas. Recovers from xterm WebGL atlas corruption (issue #121) where
+ * glyphs render from stale/wrong atlas cells — the buffer is intact, only the
+ * GPU glyph cache is bad, so a plain refresh() would just redraw the same
+ * garbage. clearTextureAtlas() is a safe no-op under the DOM renderer.
+ */
+function redraw(term: Terminal): void {
+  try {
+    term.clearTextureAtlas();
+    term.refresh(0, term.rows - 1);
+  } catch {
+    // The terminal may be mid-dispose (e.g. a window-focus event racing
+    // teardown). A best-effort cosmetic redraw must never crash the app.
+  }
+}
+
+export function redrawTerminal(id: string): void {
+  const entry = entries.get(id);
+  if (entry) redraw(entry.term);
+}
+
+export function redrawAllTerminals(): void {
+  for (const [, entry] of entries) redraw(entry.term);
+}

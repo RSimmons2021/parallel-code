@@ -80,6 +80,7 @@ import { osIsDark } from './lib/os-appearance';
 import { applyAppearanceMode, markCustomThemesReady, loadCustomThemes } from './store/store';
 import { isMac, mod } from './lib/platform';
 import { createCtrlWheelZoomHandler } from './lib/wheelZoom';
+import { redrawAllTerminals } from './lib/terminalFitManager';
 import { ArenaOverlay } from './arena/ArenaOverlay';
 import { startDesktopNotificationWatcher } from './store/desktopNotifications';
 import { startPrChecksSubscription } from './store/pr-checks';
@@ -334,7 +335,15 @@ function App() {
     void (async () => {
       try {
         unlistenFocusChanged = await appWindow.onFocusChanged((event) => {
-          setWindowFocused(Boolean(event.payload));
+          const focused = Boolean(event.payload);
+          setWindowFocused(focused);
+          // The compositor can throttle the window's WebGL surface while it's
+          // backgrounded, leaving a corrupt glyph atlas (issue #121). Repaint
+          // every terminal on refocus so the corruption clears reliably.
+          // macOS-only: the corruption has never been reported on Linux, so
+          // Linux users don't pay the per-refocus repaint. The manual
+          // redrawTerminals shortcut stays cross-platform as an escape hatch.
+          if (focused && isMac) redrawAllTerminals();
         });
       } catch {
         unlistenFocusChanged = null;
@@ -686,6 +695,7 @@ function App() {
         }
       },
       resetZoom: () => resetGlobalScale(),
+      redrawTerminals: () => redrawAllTerminals(),
     };
 
     const cleanupZoomShortcuts = registerZoomShortcuts({
