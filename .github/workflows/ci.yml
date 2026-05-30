@@ -19,11 +19,28 @@ jobs:
 
       - run: npm ci
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Install Semgrep
+        run: |
+          python -m pip install --user --break-system-packages semgrep==1.145.0
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Lint
-        run: npm run lint
+      - name: Check
+        run: npm run check
 
-      - name: Format check
-        run: npm run format:check
+      - name: Test
+        run: npm test
+
+      - name: Dead-code lint
+        run: npm run lint:dead
+
+      - name: Architecture lint
+        run: npm run lint:arch
+
+      - name: Security lint
+        run: npm run lint:security
+
+      - name: Security rule fixtures
+        run: npm run test:security-rules
+
+      - name: OpenSpec
+        run: npx openspec validate --all --strict

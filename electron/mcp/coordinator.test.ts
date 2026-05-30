@@ -3012,6 +3012,10 @@ describe('Coordinator waitForSignalDone — requestId replay after transport fai
     coordinator.registerCoordinator('coord-1', 'proj-1');
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('same requestId returns cached result after signal is already consumed', async () => {
     await coordinator.createTask({ name: 'test', prompt: 'do', coordinatorTaskId: 'coord-1' });
     const task = coordinator.getTask('task-1');
@@ -3075,6 +3079,45 @@ describe('Coordinator waitForSignalDone — requestId replay after transport fai
     // coord-B with same requestId must not replay coord-A's cached result
     const result2 = await coordinator.waitForSignalDone('coord-2', 50, requestId);
     expect(result2.timedOut).toBe(true);
+  });
+
+  it('same requestId returns cached timeout result immediately', async () => {
+    vi.useFakeTimers();
+    await coordinator.createTask({ name: 'test', prompt: 'do', coordinatorTaskId: 'coord-1' });
+
+    const requestId = 'timeout-replay-id';
+    const firstWait = coordinator.waitForSignalDone('coord-1', 500, requestId);
+    vi.advanceTimersByTime(500);
+    const firstResult = await firstWait;
+
+    expect(firstResult).toEqual({ remaining: 1, timedOut: true });
+
+    const replay = coordinator.waitForSignalDone('coord-1', 500, requestId);
+    let replayResult: Awaited<typeof replay> | undefined;
+    replay.then((result) => {
+      replayResult = result;
+    });
+    await Promise.resolve();
+
+    expect(replayResult).toEqual(firstResult);
+  });
+
+  it('same requestId replays cached timeout after coordinator deregisters', async () => {
+    vi.useFakeTimers();
+    await coordinator.createTask({ name: 'test', prompt: 'do', coordinatorTaskId: 'coord-1' });
+
+    const requestId = 'timeout-replay-after-deregister-id';
+    const firstWait = coordinator.waitForSignalDone('coord-1', 500, requestId);
+    vi.advanceTimersByTime(500);
+    const firstResult = await firstWait;
+
+    expect(firstResult).toEqual({ remaining: 1, timedOut: true });
+
+    await coordinator.deregisterCoordinator('coord-1');
+
+    await expect(coordinator.waitForSignalDone('coord-1', 500, requestId)).resolves.toEqual(
+      firstResult,
+    );
   });
 });
 

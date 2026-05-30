@@ -2,7 +2,7 @@ import { produce } from 'solid-js/store';
 import { invoke } from '../lib/ipc';
 import { IPC } from '../../electron/ipc/channels';
 import { store, setStore } from './core';
-import { randomPastelColor } from './projects';
+import { randomPastelColor } from './project-color';
 import { markAgentSpawned } from './taskStatus';
 import { getLocalDateKey } from '../lib/date';
 import type {
@@ -19,7 +19,7 @@ import { DEFAULT_TERMINAL_FONT } from '../lib/fonts';
 import { isLookPreset } from '../lib/look';
 import { validateCustomTheme, parseThemeCss, themeToCss } from '../lib/custom-theme';
 import type { CustomTheme } from '../lib/custom-theme';
-import { syncTerminalCounter } from './terminals';
+import { syncTerminalCounterFromState } from './terminal-counter';
 
 const RESTORED_AGENT_SPAWN_STAGGER_MS = 1_000;
 
@@ -823,7 +823,7 @@ export async function loadState(): Promise<void> {
     markAgentSpawned(agentId);
   }
 
-  syncTerminalCounter();
+  syncTerminalCounterFromState(store.taskOrder, store.terminals);
 
   // Await migration of any customThemes found in state.json to individual CSS files.
   // Runs after the produce block so it can be properly awaited. loadCustomThemes() in

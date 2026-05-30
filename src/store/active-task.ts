@@ -1,0 +1,46 @@
+import { store, setStore } from './core';
+
+const AI_TERMINAL_PREFIX = 'ai-terminal:';
+
+function focusedAgentIdForTask(taskId: string, agentIds: string[]): string | null {
+  const panel = store.focusedPanel[taskId];
+  if (!panel?.startsWith(AI_TERMINAL_PREFIX)) return null;
+  const agentId = panel.slice(AI_TERMINAL_PREFIX.length);
+  return agentIds.includes(agentId) ? agentId : null;
+}
+
+function selectedAgentIdForTask(task: {
+  agentIds: string[];
+  selectedAgentId?: string;
+}): string | null {
+  return task.selectedAgentId && task.agentIds.includes(task.selectedAgentId)
+    ? task.selectedAgentId
+    : null;
+}
+
+export function setActiveTask(id: string): void {
+  const task = store.tasks[id];
+  const terminal = store.terminals[id];
+  if (!task && !terminal) return;
+  let activeAgentId: string | null = null;
+  if (task) {
+    activeAgentId =
+      focusedAgentIdForTask(id, task.agentIds) ??
+      selectedAgentIdForTask(task) ??
+      (store.activeAgentId && task.agentIds.includes(store.activeAgentId)
+        ? store.activeAgentId
+        : (task.agentIds[0] ?? null));
+    if (activeAgentId) setStore('tasks', id, 'selectedAgentId', activeAgentId);
+  }
+  setStore('activeTaskId', id);
+  setStore('activeAgentId', activeAgentId);
+}
+
+export function setActiveAgent(agentId: string): void {
+  setStore('activeAgentId', agentId);
+  const taskId = store.activeTaskId;
+  const task = taskId ? store.tasks[taskId] : undefined;
+  if (task?.agentIds.includes(agentId)) {
+    setStore('tasks', taskId as string, 'selectedAgentId', agentId);
+  }
+}

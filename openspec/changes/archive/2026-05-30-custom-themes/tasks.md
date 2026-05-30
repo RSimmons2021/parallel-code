@@ -30,5 +30,5 @@
       `saveAppState()` output.
 - [x] Update unit tests in `src/lib/custom-theme.test.ts` and
       `src/store/appearance-mode.test.ts`.
-- [ ] Validate with `npm run typecheck`, `npm test`, and
+- [x] Validate with `npm run typecheck`, `npm test`, and
       `openspec validate --all --strict`.

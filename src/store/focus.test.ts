@@ -76,7 +76,7 @@ vi.mock('./sidebar-order', () => ({
   computeSidebarTaskOrder: vi.fn(() => mockStore.taskOrder),
 }));
 
-vi.mock('./tasks', () => ({
+vi.mock('./task-uncollapse', () => ({
   uncollapseTask: vi.fn((id: string) => {
     if (mockStore.tasks[id]) mockStore.tasks[id].collapsed = false;
   }),

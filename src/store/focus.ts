@@ -1,8 +1,8 @@
 import { batch } from 'solid-js';
 import { store, setStore } from './core';
-import { setActiveTask } from './navigation';
+import { setActiveTask } from './active-task';
 import { computeSidebarTaskOrder } from './sidebar-order';
-import { uncollapseTask } from './tasks';
+import { uncollapseTask } from './task-uncollapse';
 
 // Imperative focus registry: components register focus callbacks on mount
 const focusRegistry = new Map<string, () => void>();
@@ -263,10 +263,6 @@ export function focusPlaceholder(button?: 'add-task' | 'add-terminal'): void {
 
 export function unfocusPlaceholder(): void {
   setStore('placeholderFocused', false);
-}
-
-export function setSidebarFocusedProjectId(id: string | null): void {
-  setStore('sidebarFocusedProjectId', id);
 }
 
 function focusTaskPanel(taskId: string, panel: string): void {

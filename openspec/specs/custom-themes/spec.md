@@ -120,9 +120,9 @@ custom theme overrides color variables.
 
 ### Requirement: Terminal readability for light custom themes
 
-When a custom theme's `terminalBackground` has luminance > 0.5, the terminal
-emulator SHALL use a dark foreground color and a GitHub-light-compatible ANSI
-palette so that colored output remains legible.
+The terminal emulator SHALL use a dark foreground color and a
+GitHub-light-compatible ANSI palette when a custom theme's
+`terminalBackground` has luminance > 0.5 so colored output remains legible.
 
 #### Scenario: Light background gets dark foreground
 
@@ -141,7 +141,11 @@ palette so that colored output remains legible.
 The theme dialog SHALL report contrast warnings for pairs that fail WCAG AA
 thresholds so users can correct them before saving.
 
-#### Contrast pairs checked
+#### Scenario: Contrast pairs are checked
+
+- **GIVEN** the theme dialog validates a custom theme
+- **WHEN** it computes WCAG contrast warnings
+- **THEN** it checks these foreground/background pairs:
 
 | Foreground      | Background      | Required ratio |
 | --------------- | --------------- | -------------- |
@@ -150,5 +154,5 @@ thresholds so users can correct them before saving.
 | `--fg`          | `--bg-selected` | 4.5 : 1        |
 | `--accent-text` | `--accent`      | 4.5 : 1        |
 
-Translucent backgrounds SHALL be composited over `--bg-elevated` before the
-ratio is computed to avoid false positives.
+- **AND** translucent backgrounds are composited over `--bg-elevated` before the
+  ratio is computed to avoid false positives

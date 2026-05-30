@@ -48,14 +48,6 @@ export function setVerbose(value: boolean): void {
   minLevel = value ? 'debug' : buildDefault;
 }
 
-export function getMinLevel(): LogLevel {
-  return minLevel;
-}
-
-export function isVerbose(): boolean {
-  return verbose;
-}
-
 export function debug(category: string, msg: string, ctx?: LogContext): void {
   emit('debug', category, msg, ctx);
 }

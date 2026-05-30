@@ -1628,15 +1628,15 @@ export class Coordinator {
     timeoutMs = DEFAULT_WAIT_TIMEOUT_MS,
     requestId?: string,
   ): Promise<WaitForSignalDoneResult> {
-    if (!this.coordinators.has(coordinatorTaskId)) {
-      return Promise.reject(new Error(`Coordinator not found: ${coordinatorTaskId}`));
-    }
     // Replay the cached result if this requestId already delivered — handles retry
     // after the HTTP response was lost before the client received it.
     // Key includes coordinatorTaskId to prevent cross-coordinator replay.
     if (requestId) {
       const cached = this.recentlyDelivered.get(coordinatorTaskId, requestId);
       if (cached) return Promise.resolve(cached);
+    }
+    if (!this.coordinators.has(coordinatorTaskId)) {
+      return Promise.reject(new Error(`Coordinator not found: ${coordinatorTaskId}`));
     }
     // Return immediately if there's an unconsumed signal
     for (const task of this.tasks.values()) {
@@ -1696,7 +1696,7 @@ export class Coordinator {
           activeWaitCount: this.activeSignalWaitCounts.get(coordinatorTaskId) ?? 0,
         });
         const remaining = this.countRemaining(coordinatorTaskId);
-        resolve({ remaining, timedOut: true });
+        wrapped({ remaining, timedOut: true });
       }, timeoutMs);
 
       let resolvers = this.anySignalResolvers.get(coordinatorTaskId);

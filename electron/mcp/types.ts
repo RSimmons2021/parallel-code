@@ -85,49 +85,6 @@ export interface CoordinatorState {
   writtenMcpParallelCode?: unknown;
 }
 
-// --- MCP tool input schemas ---
-
-export interface CreateTaskInput {
-  name: string;
-  prompt?: string;
-  projectId?: string;
-}
-
-export type ListTasksInput = Record<string, never>;
-
-export interface GetTaskStatusInput {
-  taskId: string;
-}
-
-export interface SendPromptInput {
-  taskId: string;
-  prompt: string;
-}
-
-export interface WaitForIdleInput {
-  taskId: string;
-  timeoutMs?: number;
-}
-
-export interface GetTaskDiffInput {
-  taskId: string;
-}
-
-export interface GetTaskOutputInput {
-  taskId: string;
-}
-
-export interface MergeTaskInput {
-  taskId: string;
-  squash?: boolean;
-  message?: string;
-  cleanup?: boolean;
-}
-
-export interface CloseTaskInput {
-  taskId: string;
-}
-
 // --- API request/response types ---
 
 export interface ApiTaskSummary {

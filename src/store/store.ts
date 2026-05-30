@@ -4,7 +4,6 @@ export {
   getProject,
   addProject,
   removeProject,
-  removeProjectWithTasks,
   updateProject,
   getProjectPath,
   getProjectBranchPrefix,
@@ -15,6 +14,7 @@ export {
   projectIsGitRepo,
   PASTEL_HUES,
 } from './projects';
+export { removeProjectWithTasks } from './project-removal';
 export {
   loadAgents,
   addAgentToTask,
@@ -24,7 +24,6 @@ export {
   switchAgent,
   addCustomAgent,
   removeCustomAgent,
-  updateCustomAgent,
 } from './agents';
 export {
   createTask,
@@ -48,13 +47,11 @@ export {
   closeShell,
   hasDirectTask,
   collapseTask,
-  uncollapseTask,
   getGitHubDropDefaults,
   setNewTaskDropUrl,
   setNewTaskPrefillPrompt,
   setPlanContent,
   setStepsContent,
-  setTaskStepsEnabled,
   setTaskLastInputAt,
   initMCPListeners,
   getCoordinatorCloseWarning,
@@ -65,10 +62,10 @@ export {
   markTaskMcpError,
   retryTaskMcpStartup,
 } from './tasks';
+export { uncollapseTask } from './task-uncollapse';
 export {
   setActiveTask,
   setActiveAgent,
-  navigateAgent,
   moveActiveTask,
   jumpToTask,
   toggleNewTaskDialog,
@@ -95,12 +92,10 @@ export {
   toggleHelpDialog,
   toggleSettingsDialog,
   sendActivePrompt,
-  setSidebarFocusedProjectId,
 } from './focus';
 export type { PanelId, PendingAction, TaskViewportVisibility } from './types';
 export { saveState, loadState, loadCustomThemes } from './persistence';
 export {
-  getGlobalScale,
   adjustGlobalScale,
   resetGlobalScale,
   getPanelUserSize,
@@ -114,7 +109,6 @@ export {
   toggleTaskFocusMode,
   setTaskSplitMode,
   setTerminalFont,
-  setThemePreset,
   applyAppearanceMode,
   markCustomThemesReady,
   setAppearanceMode,
@@ -122,7 +116,6 @@ export {
   setDarkTheme,
   saveCustomTheme,
   deleteCustomTheme,
-  activateCustomTheme,
   setAutoTrustFolders,
   setShowPlans,
   setShowPromptInput,
@@ -168,12 +161,7 @@ export type { TaskAttentionState, TaskDotStatus } from './taskStatus';
 export { showNotification, clearNotification } from './notification';
 export { startPrChecksSubscription, getPrChecks, type PrChecksState } from './pr-checks';
 export { getCompletedTasksTodayCount, getMergedLineTotals } from './completion';
-export {
-  createTerminal,
-  closeTerminal,
-  updateTerminalName,
-  syncTerminalCounter,
-} from './terminals';
+export { createTerminal, closeTerminal, updateTerminalName } from './terminals';
 export { startRemoteAccess, stopRemoteAccess, refreshRemoteStatus } from './remote';
 export {
   updateStatus,

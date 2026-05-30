@@ -711,9 +711,7 @@ export function registerAllHandlers(win: BrowserWindow): void {
     if (basename !== args.filename) throw new Error('Invalid filename');
     if (!basename.startsWith('arena-') || !basename.endsWith('.json'))
       throw new Error('Arena files must be arena-*.json');
-    const tmpPath = filePath + '.tmp';
-    fs.writeFileSync(tmpPath, args.json, 'utf-8');
-    fs.renameSync(tmpPath, filePath);
+    atomicWriteFileSync(filePath, args.json);
   });
 
   ipcMain.handle(IPC.LoadArenaData, (_e, args) => {

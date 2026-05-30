@@ -6,21 +6,15 @@ import { clearAgentActivity } from './taskStatus';
 import { triggerFocus, getTaskFocusedPanel } from './focus';
 import type { Terminal } from './types';
 import { warn as logWarn } from '../lib/log';
-
-let terminalCounter = 0;
-let lastCreateTime = 0;
+import { nextTerminalName, recordTerminalCreateAttempt } from './terminal-counter';
 
 const REMOVE_ANIMATION_MS = 300;
 
 export function createTerminal(): void {
-  const now = Date.now();
-  if (now - lastCreateTime < 300) return;
-  lastCreateTime = now;
-
-  terminalCounter++;
+  if (!recordTerminalCreateAttempt()) return;
   const id = crypto.randomUUID();
   const agentId = crypto.randomUUID();
-  const name = `Terminal ${terminalCounter}`;
+  const name = nextTerminalName();
 
   const terminal: Terminal = { id, name, agentId };
 
@@ -103,13 +97,3 @@ export function updateTerminalName(terminalId: string, name: string): void {
 }
 
 /** Restore the auto-increment counter from persisted state. */
-export function syncTerminalCounter(): void {
-  let max = 0;
-  for (const id of store.taskOrder) {
-    const t = store.terminals[id];
-    if (!t) continue;
-    const match = t.name.match(/^Terminal (\d+)$/);
-    if (match) max = Math.max(max, Number(match[1]));
-  }
-  terminalCounter = max;
-}

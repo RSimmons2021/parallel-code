@@ -29,12 +29,6 @@ const MIN_SCALE = 0.5;
 const MAX_SCALE = 2.0;
 const SCALE_STEP = 0.1;
 
-// --- Global Scale ---
-
-export function getGlobalScale(): number {
-  return store.globalScale;
-}
-
 export function adjustGlobalScale(delta: 1 | -1): void {
   const current = store.globalScale;
   const next =
@@ -88,10 +82,6 @@ export function toggleSidebar(): void {
 
 export function setTerminalFont(terminalFont: string): void {
   setStore('terminalFont', terminalFont);
-}
-
-export function setThemePreset(themePreset: LookPreset): void {
-  setStore('themePreset', themePreset);
 }
 
 export function applyAppearanceMode(): void {
@@ -156,10 +146,6 @@ export async function deleteCustomTheme(id: string): Promise<void> {
     if (store.activeCustomThemeId === id) setStore('activeCustomThemeId', null);
   });
   applyAppearanceMode();
-}
-
-export function activateCustomTheme(id: string | null): void {
-  setStore('activeCustomThemeId', id);
 }
 
 export function setAutoTrustFolders(autoTrustFolders: boolean): void {

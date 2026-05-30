@@ -484,7 +484,6 @@ export async function retryCloseTask(taskId: string): Promise<void> {
 }
 
 const REMOVE_ANIMATION_MS = 300;
-const RESTORED_AGENT_SPAWN_STAGGER_MS = 1_000;
 
 function removeTaskFromStore(taskId: string, agentIds: string[]): void {
   recordTaskCompleted();
@@ -891,66 +890,6 @@ export async function collapseTask(taskId: string): Promise<void> {
   );
 
   rescheduleTaskStatusPolling();
-}
-
-export function uncollapseTask(taskId: string): void {
-  const task = store.tasks[taskId];
-  if (!task || !task.collapsed) return;
-
-  const savedDefs =
-    task.savedAgentDefs && task.savedAgentDefs.length > 0
-      ? task.savedAgentDefs
-      : task.savedAgentDef
-        ? [task.savedAgentDef]
-        : [];
-  const restoredAgents = savedDefs.map((def) => ({ id: crypto.randomUUID(), def }));
-  const selectedAgentIndex = task.savedSelectedAgentIndex ?? 0;
-  const promptedAgentIndexes = task.savedPromptedAgentIndexes ?? [];
-
-  setStore(
-    produce((s) => {
-      const t = s.tasks[taskId];
-      t.collapsed = false;
-      s.collapsedTaskOrder = s.collapsedTaskOrder.filter((id) => id !== taskId);
-      s.taskOrder.push(taskId);
-      s.activeTaskId = taskId;
-
-      for (let i = 0; i < restoredAgents.length; i++) {
-        const { id: agentId, def } = restoredAgents[i];
-        const agent: Agent = {
-          id: agentId,
-          taskId,
-          def,
-          resumed: true,
-          status: 'running',
-          exitCode: null,
-          signal: null,
-          lastOutput: [],
-          generation: 0,
-          spawnDelayMs:
-            restoredAgents.length > 1 && i > 0 ? i * RESTORED_AGENT_SPAWN_STAGGER_MS : undefined,
-        };
-        s.agents[agentId] = agent;
-      }
-
-      t.agentIds = restoredAgents.map((agent) => agent.id);
-      const promptedAgentIds = promptedAgentIndexes
-        .map((index) => t.agentIds[index])
-        .filter((id): id is string => Boolean(id));
-      t.promptedAgentIds = promptedAgentIds.length > 0 ? promptedAgentIds : undefined;
-      t.selectedAgentId = t.agentIds[selectedAgentIndex] ?? t.agentIds[0];
-      t.savedAgentDef = undefined;
-      t.savedAgentDefs = undefined;
-      t.savedSelectedAgentIndex = undefined;
-      t.savedPromptedAgentIndexes = undefined;
-      s.activeAgentId = t.selectedAgentId ?? null;
-    }),
-  );
-
-  if (restoredAgents.length > 0) {
-    for (const { id } of restoredAgents) markAgentSpawned(id);
-    rescheduleTaskStatusPolling();
-  }
 }
 
 // --- GitHub drop-to-create helpers ---
@@ -1372,10 +1311,4 @@ export function setStepsContent(taskId: string, steps: unknown[] | null): void {
 
 export function setTaskLastInputAt(taskId: string): void {
   setStore('tasks', taskId, 'lastInputAt', new Date().toISOString());
-}
-
-/** Toggles steps tracking for a task and remembers the choice as the new default. */
-export function setTaskStepsEnabled(taskId: string, enabled: boolean): void {
-  setStore('tasks', taskId, 'stepsEnabled', enabled || undefined);
-  setStore('showSteps', enabled); // remember as default for future tasks
 }

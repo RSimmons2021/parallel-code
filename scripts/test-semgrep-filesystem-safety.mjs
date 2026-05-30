@@ -1,10 +1,23 @@
 #!/usr/bin/env node
 /* global console, process */
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+const semgrepCheck = spawnSync('semgrep', ['--version'], { stdio: 'ignore' });
+if (semgrepCheck.error?.code === 'ENOENT') {
+  console.error(
+    'semgrep not installed; cannot run filesystem-safety rule fixture test ' +
+      '(brew install semgrep or pip install semgrep)',
+  );
+  process.exit(1);
+}
+if (semgrepCheck.status !== 0) {
+  console.error('semgrep is installed but failed to run');
+  process.exit(semgrepCheck.status ?? 1);
+}
 
 const tmp = mkdtempSync(join(tmpdir(), 'parallel-code-semgrep-'));
 
@@ -37,7 +50,7 @@ try {
 
   const stdout = execFileSync(
     'semgrep',
-    ['scan', '--config', '.semgrep/filesystem-safety.yml', '--json', tmp],
+    ['scan', '--config', '.semgrep/filesystem-safety.yml', '--json', '--no-git-ignore', tmp],
     {
       cwd: process.cwd(),
       encoding: 'utf8',
