@@ -321,6 +321,39 @@ function createThrottledForwarder(
   };
 }
 
+/**
+ * Append a local-only entry to a worktree's `.git/info/exclude`, idempotent on
+ * `marker`. Resolves linked-worktree gitdir files (relative or absolute) and
+ * creates `info/` if missing. Best-effort: never throws, since failing to
+ * git-exclude a generated file must not block coordinator startup.
+ */
+function appendGitExclude(worktreeRoot: string, marker: string, block: string): void {
+  try {
+    const gitPath = path.join(worktreeRoot, '.git');
+    let infoDir: string;
+    if (fs.statSync(gitPath).isFile()) {
+      const realGitDir = fs
+        .readFileSync(gitPath, 'utf-8')
+        .trim()
+        .replace(/^gitdir:\s*/, '');
+      infoDir = path.join(
+        path.isAbsolute(realGitDir) ? realGitDir : path.resolve(worktreeRoot, realGitDir),
+        'info',
+      );
+    } else {
+      infoDir = path.join(gitPath, 'info');
+    }
+    fs.mkdirSync(infoDir, { recursive: true });
+    const excludePath = path.join(infoDir, 'exclude');
+    const existing = fs.existsSync(excludePath) ? fs.readFileSync(excludePath, 'utf-8') : '';
+    if (!existing.includes(marker)) {
+      fs.appendFileSync(excludePath, block);
+    }
+  } catch (err) {
+    console.warn(`[MCP] Could not git-exclude ${marker}:`, err);
+  }
+}
+
 export function registerAllHandlers(win: BrowserWindow): void {
   // --- Remote access state ---
   let remoteServer: Awaited<ReturnType<typeof startRemoteServer>> | null = null;
@@ -1570,31 +1603,11 @@ export function registerAllHandlers(win: BrowserWindow): void {
         // Keep .parallel-code/ out of git status in the sub-task worktree.
         // Use .git/info/exclude (local-only, never committed) to avoid dirtying
         // a tracked .gitignore file on every Docker coordinator startup.
-        try {
-          const wtRoot = args.worktreePath ?? args.projectRoot;
-          const gitPath = path.join(wtRoot, '.git');
-          let infoDir: string;
-          if (fs.statSync(gitPath).isFile()) {
-            const realGitDir = fs
-              .readFileSync(gitPath, 'utf-8')
-              .trim()
-              .replace(/^gitdir:\s*/, '');
-            infoDir = path.join(
-              path.isAbsolute(realGitDir) ? realGitDir : path.resolve(wtRoot, realGitDir),
-              'info',
-            );
-          } else {
-            infoDir = path.join(gitPath, 'info');
-          }
-          fs.mkdirSync(infoDir, { recursive: true });
-          const excludePath = path.join(infoDir, 'exclude');
-          const existing = fs.existsSync(excludePath) ? fs.readFileSync(excludePath, 'utf-8') : '';
-          if (!existing.includes('.parallel-code/')) {
-            fs.appendFileSync(excludePath, '\n# Parallel Code Docker MCP dir\n.parallel-code/\n');
-          }
-        } catch {
-          // best-effort — don't block MCP startup over a gitignore write
-        }
+        appendGitExclude(
+          args.worktreePath ?? args.projectRoot,
+          '.parallel-code/',
+          '\n# Parallel Code Docker MCP dir\n.parallel-code/\n',
+        );
       } else {
         coordinator.setDockerContainerName(args.coordinatorTaskId, null);
       }
@@ -1638,31 +1651,11 @@ export function registerAllHandlers(win: BrowserWindow): void {
         );
 
         // Append to .git/info/exclude (local-only gitignore, not committed)
-        try {
-          const gitDir = path.join(mcpJsonDir, '.git');
-          let infoDir: string;
-          if (fs.statSync(gitDir).isFile()) {
-            const gitFileContent = fs.readFileSync(gitDir, 'utf-8').trim();
-            const realGitDir = gitFileContent.replace(/^gitdir:\s*/, '');
-            infoDir = path.join(
-              path.isAbsolute(realGitDir) ? realGitDir : path.resolve(mcpJsonDir, realGitDir),
-              'info',
-            );
-          } else {
-            infoDir = path.join(gitDir, 'info');
-          }
-          fs.mkdirSync(infoDir, { recursive: true });
-          const excludePath = path.join(infoDir, 'exclude');
-          const existing = fs.existsSync(excludePath) ? fs.readFileSync(excludePath, 'utf-8') : '';
-          if (!existing.includes('.mcp.json')) {
-            fs.appendFileSync(
-              excludePath,
-              '\n# Parallel Code MCP config (contains ephemeral token)\n.mcp.json\n',
-            );
-          }
-        } catch (err) {
-          console.warn('[MCP] Could not git-exclude .mcp.json:', err);
-        }
+        appendGitExclude(
+          mcpJsonDir,
+          '.mcp.json',
+          '\n# Parallel Code MCP config (contains ephemeral token)\n.mcp.json\n',
+        );
 
         console.warn('[MCP] .mcp.json written to:', worktreeMcpPath);
 
