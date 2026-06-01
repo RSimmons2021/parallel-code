@@ -137,6 +137,34 @@ function execStdout(result: Awaited<ReturnType<typeof execAsync>>): string {
   return typeof stdout === 'string' ? stdout : stdout.toString('utf8');
 }
 
+/**
+ * The per-sub-task MCP config: a stdio launch of the parallel-code MCP server
+ * scoped to one task. Identical across createTask, coordinator re-registration,
+ * and hydration rewrite — only the resolved doneToken differs, so callers own
+ * token generation and pass the final value in.
+ */
+function buildSubtaskMcpConfig(args: {
+  serverPath: string;
+  serverUrl: string;
+  subtaskToken: string;
+  taskId: string;
+  doneToken: string;
+}) {
+  return {
+    mcpServers: {
+      'parallel-code': {
+        type: 'stdio' as const,
+        command: 'node',
+        args: [args.serverPath, '--url', args.serverUrl, '--task-id', args.taskId],
+        env: {
+          PARALLEL_CODE_MCP_TOKEN: args.subtaskToken,
+          PARALLEL_CODE_MCP_DONE_TOKEN: args.doneToken,
+        },
+      },
+    },
+  };
+}
+
 export class Coordinator {
   private tasks = new Map<string, CoordinatedTask>();
   private tailBuffers = new Map<string, string>();
@@ -583,19 +611,13 @@ export class Coordinator {
       if (!task.mcpConfigPath) continue;
       // Preserve existing doneToken; generate a fresh one if not yet set (e.g. older persisted task).
       if (!task.doneToken) task.doneToken = randomBytes(24).toString('base64url');
-      const mcpConfig = {
-        mcpServers: {
-          'parallel-code': {
-            type: 'stdio' as const,
-            command: 'node',
-            args: [serverPath, '--url', serverUrl, '--task-id', task.id],
-            env: {
-              PARALLEL_CODE_MCP_TOKEN: subtaskToken,
-              PARALLEL_CODE_MCP_DONE_TOKEN: task.doneToken,
-            },
-          },
-        },
-      };
+      const mcpConfig = buildSubtaskMcpConfig({
+        serverPath,
+        serverUrl,
+        subtaskToken,
+        taskId: task.id,
+        doneToken: task.doneToken,
+      });
       atomicWriteFileSync(task.mcpConfigPath, JSON.stringify(mcpConfig, null, 2), { mode: 0o600 });
     }
   }
@@ -949,19 +971,13 @@ export class Coordinator {
         const { serverUrl, subtaskToken, serverPath } = mcpServerInfoForTask;
         const doneToken = randomBytes(24).toString('base64url');
         task.doneToken = doneToken;
-        const mcpConfig = {
-          mcpServers: {
-            'parallel-code': {
-              type: 'stdio' as const,
-              command: 'node',
-              args: [serverPath, '--url', serverUrl, '--task-id', task.id],
-              env: {
-                PARALLEL_CODE_MCP_TOKEN: subtaskToken,
-                PARALLEL_CODE_MCP_DONE_TOKEN: doneToken,
-              },
-            },
-          },
-        };
+        const mcpConfig = buildSubtaskMcpConfig({
+          serverPath,
+          serverUrl,
+          subtaskToken,
+          taskId: task.id,
+          doneToken,
+        });
         subTaskMcpConfig = mcpConfig;
         const configPath = getSubTaskMcpConfigPath(dockerContainerName, serverPath, task.id);
         await atomicWriteFile(configPath, JSON.stringify(mcpConfig, null, 2), { mode: 0o600 });
@@ -2089,19 +2105,13 @@ export class Coordinator {
     if (!serverInfo) return undefined;
     const { serverUrl, subtaskToken, serverPath } = serverInfo;
     if (!task.doneToken) task.doneToken = randomBytes(24).toString('base64url');
-    const mcpConfig = {
-      mcpServers: {
-        'parallel-code': {
-          type: 'stdio' as const,
-          command: 'node',
-          args: [serverPath, '--url', serverUrl, '--task-id', task.id],
-          env: {
-            PARALLEL_CODE_MCP_TOKEN: subtaskToken,
-            PARALLEL_CODE_MCP_DONE_TOKEN: task.doneToken,
-          },
-        },
-      },
-    };
+    const mcpConfig = buildSubtaskMcpConfig({
+      serverPath,
+      serverUrl,
+      subtaskToken,
+      taskId: task.id,
+      doneToken: task.doneToken,
+    });
     if (mcpConfigPath) {
       atomicWriteFileSync(mcpConfigPath, JSON.stringify(mcpConfig, null, 2), { mode: 0o600 });
     }

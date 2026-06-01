@@ -2,6 +2,7 @@ import { produce } from 'solid-js/store';
 import { invoke } from '../lib/ipc';
 import { IPC } from '../../electron/ipc/channels';
 import { store, setStore, cleanupPanelEntries } from './core';
+import { effectiveAgentId } from './agent-select';
 import { clearAgentActivity } from './taskStatus';
 import { triggerFocus, getTaskFocusedPanel } from './focus';
 import type { Terminal } from './types';
@@ -60,15 +61,7 @@ export async function closeTerminal(terminalId: string): Promise<void> {
     const neighbor = order[neighborIdx] ?? null;
     setStore('activeTaskId', neighbor);
     const neighborTask = neighbor ? store.tasks[neighbor] : null;
-    setStore(
-      'activeAgentId',
-      neighborTask
-        ? neighborTask.selectedAgentId &&
-          neighborTask.agentIds.includes(neighborTask.selectedAgentId)
-          ? neighborTask.selectedAgentId
-          : (neighborTask.agentIds[0] ?? null)
-        : null,
-    );
+    setStore('activeAgentId', neighborTask ? effectiveAgentId(neighborTask) : null);
   }
 
   // Phase 1: mark as removing so UI can animate

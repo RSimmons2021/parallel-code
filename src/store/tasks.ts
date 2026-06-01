@@ -2,6 +2,7 @@ import { produce } from 'solid-js/store';
 import { invoke, Channel } from '../lib/ipc';
 import { IPC } from '../../electron/ipc/channels';
 import { store, setStore, cleanupPanelEntries } from './core';
+import { effectiveAgentId } from './agent-select';
 import { saveState } from './persistence';
 import { setTaskFocusedPanel } from './focus';
 import { getProject, getProjectPath, getProjectBranchPrefix, isProjectMissing } from './projects';
@@ -546,12 +547,7 @@ function removeTaskFromStore(taskId: string, agentIds: string[]): void {
         if (s.activeTaskId === taskId) {
           s.activeTaskId = neighbor;
           const neighborTask = neighbor ? s.tasks[neighbor] : null;
-          s.activeAgentId = neighborTask
-            ? neighborTask.selectedAgentId &&
-              neighborTask.agentIds.includes(neighborTask.selectedAgentId)
-              ? neighborTask.selectedAgentId
-              : (neighborTask.agentIds[0] ?? null)
-            : null;
+          s.activeAgentId = neighborTask ? effectiveAgentId(neighborTask) : null;
         }
 
         for (const agentId of agentIds) {
@@ -914,12 +910,7 @@ export async function collapseTask(taskId: string): Promise<void> {
         const neighbor = s.taskOrder[Math.max(0, idx - 1)] ?? null;
         s.activeTaskId = neighbor;
         const neighborTask = neighbor ? s.tasks[neighbor] : null;
-        s.activeAgentId = neighborTask
-          ? neighborTask.selectedAgentId &&
-            neighborTask.agentIds.includes(neighborTask.selectedAgentId)
-            ? neighborTask.selectedAgentId
-            : (neighborTask.agentIds[0] ?? null)
-          : null;
+        s.activeAgentId = neighborTask ? effectiveAgentId(neighborTask) : null;
       }
     }),
   );
