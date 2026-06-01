@@ -379,6 +379,21 @@ export function startRemoteServer(opts: {
         const ownedByCallerOrUnscoped = (taskCoordinatorId: string): boolean =>
           !callerCoordinatorId || taskCoordinatorId === callerCoordinatorId;
 
+        // Fetch a task by id, replying 404 (missing) or 403 (not owned) and
+        // returning null in those cases. Centralizes the per-route ownership gate.
+        const requireOwnedTask = (taskId: string) => {
+          const detail = orch.getTaskStatus(taskId);
+          if (!detail) {
+            jsonReply(404, { error: 'task not found' });
+            return null;
+          }
+          if (!ownedByCallerOrUnscoped(detail.coordinatorTaskId)) {
+            jsonReply(403, { error: 'forbidden' });
+            return null;
+          }
+          return detail;
+        };
+
         const hasMatchingDoneToken = (taskId: string): boolean => {
           const expected = orch.getTaskDoneToken(taskId);
           const incoming = req.headers['x-done-token'];
@@ -501,14 +516,8 @@ export function startRemoteServer(opts: {
         if (taskIdMatch && !taskIdMatch[2] && req.method === 'GET') {
           const taskId = decodeURIComponent(taskIdMatch[1]);
           mcpLog('info', `get_task_status id=${taskId}`);
-          const detail = orch.getTaskStatus(taskId);
-          if (!detail) {
-            jsonReply(404, { error: 'task not found' });
-          } else if (!ownedByCallerOrUnscoped(detail.coordinatorTaskId)) {
-            jsonReply(403, { error: 'forbidden' });
-          } else {
-            jsonReply(200, detail);
-          }
+          const detail = requireOwnedTask(taskId);
+          if (detail) jsonReply(200, detail);
           return;
         }
 
@@ -518,10 +527,7 @@ export function startRemoteServer(opts: {
               const taskId = decodeURIComponent(taskIdMatch[1]);
               const prompt = validateRestPrompt(body.prompt, true);
               if (!prompt || typeof prompt !== 'string') return jsonReply(400, prompt);
-              const detail = orch.getTaskStatus(taskId);
-              if (!detail) return jsonReply(404, { error: 'task not found' });
-              if (!ownedByCallerOrUnscoped(detail.coordinatorTaskId))
-                return jsonReply(403, { error: 'forbidden' });
+              if (!requireOwnedTask(taskId)) return;
               mcpLog('info', `send_prompt id=${taskId}`);
               const result = await orch.sendPrompt(taskId, prompt);
               jsonReply(200, { ok: true, ...result });
@@ -542,10 +548,7 @@ export function startRemoteServer(opts: {
                 (typeof body.timeoutMs !== 'number' || !Number.isFinite(body.timeoutMs))
               )
                 return jsonReply(400, { error: 'timeoutMs must be a finite number' });
-              const waitDetail = orch.getTaskStatus(taskId);
-              if (!waitDetail) return jsonReply(404, { error: 'task not found' });
-              if (!ownedByCallerOrUnscoped(waitDetail.coordinatorTaskId))
-                return jsonReply(403, { error: 'forbidden' });
+              if (!requireOwnedTask(taskId)) return;
               mcpLog('info', `wait_for_idle id=${taskId}`);
               const idleResult = await orch.waitForIdle(
                 taskId,
@@ -573,10 +576,7 @@ export function startRemoteServer(opts: {
                 return jsonReply(400, { error: 'squash must be a boolean' });
               if (body.message !== undefined && typeof body.message !== 'string')
                 return jsonReply(400, { error: 'message must be a string' });
-              const rmDetail = orch.getTaskStatus(taskId);
-              if (!rmDetail) return jsonReply(404, { error: 'task not found' });
-              if (!ownedByCallerOrUnscoped(rmDetail.coordinatorTaskId))
-                return jsonReply(403, { error: 'forbidden' });
+              if (!requireOwnedTask(taskId)) return;
               mcpLog('info', `review_and_merge_task id=${taskId}`);
               const result = await orch.reviewAndMergeTask(taskId, {
                 squash: body.squash as boolean | undefined,
@@ -594,15 +594,7 @@ export function startRemoteServer(opts: {
 
         if (taskIdMatch && taskIdMatch[2] === 'diff' && req.method === 'GET') {
           const taskId = decodeURIComponent(taskIdMatch[1]);
-          const diffDetail = orch.getTaskStatus(taskId);
-          if (!diffDetail) {
-            jsonReply(404, { error: 'task not found' });
-            return;
-          }
-          if (!ownedByCallerOrUnscoped(diffDetail.coordinatorTaskId)) {
-            jsonReply(403, { error: 'forbidden' });
-            return;
-          }
+          if (!requireOwnedTask(taskId)) return;
           mcpLog('info', `get_task_diff id=${taskId}`);
           orch
             .getTaskDiff(taskId)
@@ -616,15 +608,7 @@ export function startRemoteServer(opts: {
 
         if (taskIdMatch && taskIdMatch[2] === 'output' && req.method === 'GET') {
           const taskId = decodeURIComponent(taskIdMatch[1]);
-          const outputDetail = orch.getTaskStatus(taskId);
-          if (!outputDetail) {
-            jsonReply(404, { error: 'task not found' });
-            return;
-          }
-          if (!ownedByCallerOrUnscoped(outputDetail.coordinatorTaskId)) {
-            jsonReply(403, { error: 'forbidden' });
-            return;
-          }
+          if (!requireOwnedTask(taskId)) return;
           mcpLog('info', `get_task_output id=${taskId}`);
           try {
             const output = orch.getTaskOutput(taskId);
@@ -638,10 +622,7 @@ export function startRemoteServer(opts: {
 
         if (taskIdMatch && taskIdMatch[2] === 'done' && req.method === 'POST') {
           const taskId = decodeURIComponent(taskIdMatch[1]);
-          const doneDetail = orch.getTaskStatus(taskId);
-          if (!doneDetail) return jsonReply(404, { error: 'task not found' });
-          if (!ownedByCallerOrUnscoped(doneDetail.coordinatorTaskId))
-            return jsonReply(403, { error: 'forbidden' });
+          if (!requireOwnedTask(taskId)) return;
           // Subtask callers must provide the per-task X-Done-Token header so a compromised
           // sub-task cannot signal completion for tasks it doesn't own.
           // Coordinator-class callers are intentionally exempt: a coordinator token is
@@ -694,10 +675,7 @@ export function startRemoteServer(opts: {
                 return jsonReply(400, { error: 'message must be a string' });
               if (body.cleanup !== undefined && typeof body.cleanup !== 'boolean')
                 return jsonReply(400, { error: 'cleanup must be a boolean' });
-              const mergeDetail = orch.getTaskStatus(taskId);
-              if (!mergeDetail) return jsonReply(404, { error: 'task not found' });
-              if (!ownedByCallerOrUnscoped(mergeDetail.coordinatorTaskId))
-                return jsonReply(403, { error: 'forbidden' });
+              if (!requireOwnedTask(taskId)) return;
               mcpLog('info', `merge_task id=${taskId} squash=${body.squash ?? false}`);
               const result = await orch.mergeTask(taskId, {
                 squash: body.squash as boolean | undefined,
@@ -716,15 +694,7 @@ export function startRemoteServer(opts: {
 
         if (taskIdMatch && !taskIdMatch[2] && req.method === 'DELETE') {
           const taskId = decodeURIComponent(taskIdMatch[1]);
-          const closeDetail = orch.getTaskStatus(taskId);
-          if (!closeDetail) {
-            jsonReply(404, { error: 'task not found' });
-            return;
-          }
-          if (!ownedByCallerOrUnscoped(closeDetail.coordinatorTaskId)) {
-            jsonReply(403, { error: 'forbidden' });
-            return;
-          }
+          if (!requireOwnedTask(taskId)) return;
           mcpLog('info', `close_task id=${taskId}`);
           orch
             .closeTask(taskId)
