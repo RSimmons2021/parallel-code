@@ -39,6 +39,29 @@ vi.mock('fs', () => ({
   mkdirSync: mockMkdirSync,
 }));
 
+// createTask writes an agent preamble via fs/promises + atomic.js; mock both so the
+// smoke tests stay hermetic (otherwise they perform real I/O against worktree_path).
+const mockFsMkdir = vi.fn().mockResolvedValue(undefined);
+const mockFsAccess = vi
+  .fn()
+  .mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }));
+const mockFsReadFile = vi.fn().mockResolvedValue('{}');
+const mockFsWriteFile = vi.fn().mockResolvedValue(undefined);
+const mockFsUnlink = vi.fn().mockResolvedValue(undefined);
+
+vi.mock('fs/promises', () => ({
+  readFile: mockFsReadFile,
+  writeFile: mockFsWriteFile,
+  unlink: mockFsUnlink,
+  access: mockFsAccess,
+  mkdir: mockFsMkdir,
+}));
+
+vi.mock('./atomic.js', () => ({
+  atomicWriteFile: vi.fn().mockResolvedValue(undefined),
+  atomicWriteFileSync: vi.fn(),
+}));
+
 // --- other mocks ---
 const mockNotifyRenderer = vi.fn();
 const mockOnPtyEvent = vi.fn();
