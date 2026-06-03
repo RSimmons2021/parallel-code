@@ -1,6 +1,7 @@
 import { Show, onMount } from 'solid-js';
 import { getProject, setTaskFocusedPanel, isPanelFocused } from '../store/store';
 import { ChangedFilesList } from './ChangedFilesList';
+import { CommitTreeOverlay } from './CommitTreeOverlay';
 import {
   CommitNavBar,
   isCommitHashSelection,
@@ -26,6 +27,9 @@ export function TaskChangedFilesSection(props: TaskChangedFilesSectionProps) {
   const coverageReportPath = () => getProject(props.task.projectId)?.coverageReportPath;
   const hasCommitNav = () =>
     props.task.gitIsolation === 'worktree' || props.task.gitIsolation === 'direct';
+  // The tree button only earns its place once a branch has history to graph — a
+  // single commit is already covered by the file list + nav bar.
+  const canShowTree = () => hasCommitNav() && props.commitList.length > 1;
   const selectedCommitInfo = () =>
     isCommitHashSelection(props.selectedCommit) && hasCommitNav()
       ? props.commitList.find((c) => c.hash === props.selectedCommit)
@@ -81,12 +85,23 @@ export function TaskChangedFilesSection(props: TaskChangedFilesSectionProps) {
         <span style={{ 'flex-shrink': '0' }}>Changed Files</span>
         <span style={{ flex: '1' }} />
         <Show when={hasCommitNav()}>
-          <CommitNavBar
-            commits={props.commitList}
-            selectedCommitHash={props.selectedCommit}
-            onNavigate={props.onCommitNavigate}
-            compact={true}
-          />
+          <div style={{ display: 'flex', 'align-items': 'center', gap: '6px' }}>
+            <Show when={canShowTree()}>
+              <CommitTreeOverlay
+                commits={props.commitList}
+                worktreePath={props.task.worktreePath}
+                baseBranch={props.task.baseBranch}
+                selectedCommit={props.selectedCommit}
+                onSelectCommit={props.onCommitNavigate}
+              />
+            </Show>
+            <CommitNavBar
+              commits={props.commitList}
+              selectedCommitHash={props.selectedCommit}
+              onNavigate={props.onCommitNavigate}
+              compact={true}
+            />
+          </div>
         </Show>
       </div>
       <Show when={selectedCommitInfo()}>

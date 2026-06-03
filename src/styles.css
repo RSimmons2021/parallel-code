@@ -1377,6 +1377,10 @@ textarea::placeholder {
   background: color-mix(in srgb, var(--accent) 8%, var(--bg-hover));
 }
 
+.commit-tree-row:hover {
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-hover));
+}
+
 .changed-files-open-editor-btn {
   position: absolute;
   right: 5px;

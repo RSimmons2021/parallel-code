@@ -1,6 +1,7 @@
 import { Show, createMemo } from 'solid-js';
 import { theme } from '../lib/theme';
 import { sf } from '../lib/fontScale';
+import { accentControlColors } from '../lib/controlStyle';
 import type { CommitInfo } from '../ipc/types';
 
 /**
@@ -89,9 +90,7 @@ export function CommitNavBar(props: CommitNavBarProps) {
 
   function pillStyle(active: boolean) {
     return {
-      background: active ? `color-mix(in srgb, ${theme.accent} 15%, transparent)` : 'transparent',
-      border: `1px solid ${active ? theme.accent : theme.border}`,
-      color: active ? theme.accent : theme.fgMuted,
+      ...accentControlColors(active),
       cursor: 'pointer',
       'border-radius': '4px',
       padding: pillPadding(),
