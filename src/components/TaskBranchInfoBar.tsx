@@ -105,6 +105,7 @@ export function TaskBranchInfoBar(props: TaskBranchInfoBarProps) {
             title={url()}
             style={{ ...infoBarBtnStyle, 'margin-right': '8px', color: theme.accent }}
           >
+            <span style={{ color: theme.fgMuted, 'font-weight': '600' }}>Source</span>
             <svg
               width="12"
               height="12"
@@ -146,29 +147,40 @@ export function TaskBranchInfoBar(props: TaskBranchInfoBarProps) {
               title={buttonTitle()}
               style={{ ...infoBarBtnStyle, 'margin-right': '8px', color: theme.accent }}
             >
-              <Show when={dotColor()}>
-                {(color) => (
-                  <Show
-                    when={pr()?.overall === 'pending'}
-                    fallback={
-                      <div
-                        style={{
-                          width: '7px',
-                          height: '7px',
-                          'border-radius': '50%',
-                          background: color(),
-                          'flex-shrink': '0',
-                        }}
+              <span
+                style={{
+                  width: '10px',
+                  height: '10px',
+                  display: 'inline-flex',
+                  'align-items': 'center',
+                  'justify-content': 'center',
+                  'flex-shrink': '0',
+                }}
+              >
+                <Show when={dotColor()}>
+                  {(color) => (
+                    <Show
+                      when={pr()?.overall === 'pending'}
+                      fallback={
+                        <span
+                          style={{
+                            width: '7px',
+                            height: '7px',
+                            'border-radius': '50%',
+                            background: color(),
+                          }}
+                        />
+                      }
+                    >
+                      <span
+                        class="inline-spinner"
+                        style={{ width: '10px', height: '10px', color: color() }}
                       />
-                    }
-                  >
-                    <span
-                      class="inline-spinner"
-                      style={{ width: '10px', height: '10px', color: color() }}
-                    />
-                  </Show>
-                )}
-              </Show>
+                    </Show>
+                  )}
+                </Show>
+              </span>
+              <span style={{ color: theme.fgMuted, 'font-weight': '600' }}>PR</span>
               <svg
                 width="12"
                 height="12"

@@ -81,15 +81,28 @@ export function startPrChecksSubscription(): () => void {
   const branchProbeByTaskId = new Map<string, { key: string; attemptedAt: number }>();
   const pendingBranchProbes = new Set<string>();
   let branchPrDetectionDisabled = false;
+  let disposed = false;
+
+  const startWatcher = (taskId: string, task: Task, prUrl: string): void => {
+    const prev = activeByTaskId.get(taskId);
+    if (prev && prev.prUrl === prUrl && prev.taskName === task.name) return;
+    activeByTaskId.set(taskId, { prUrl, taskName: task.name });
+    fireAndForget(IPC.StartPrChecksWatcher, {
+      taskId,
+      prUrl,
+      taskName: task.name,
+    });
+  };
 
   const detectBranchPr = (taskId: string, candidate: BranchPrCandidate): void => {
-    if (branchPrDetectionDisabled || pendingBranchProbes.has(taskId)) return;
+    if (disposed || branchPrDetectionDisabled || pendingBranchProbes.has(taskId)) return;
     pendingBranchProbes.add(taskId);
     invoke<BranchPrDetectionResult>(IPC.DetectPrForBranch, {
       worktreePath: candidate.worktreePath,
       branchName: candidate.branchName,
     })
       .then((result) => {
+        if (disposed) return;
         if (result?.unavailable) {
           branchPrDetectionDisabled = true;
           branchProbeByTaskId.clear();
@@ -106,6 +119,7 @@ export function startPrChecksSubscription(): () => void {
           return;
         }
         setStore('tasks', taskId, 'prUrl', url);
+        startWatcher(taskId, task, url);
         void saveState();
       })
       .catch((err: unknown) => {
@@ -117,7 +131,7 @@ export function startPrChecksSubscription(): () => void {
   };
 
   const scanForBranchPrs = (): void => {
-    if (branchPrDetectionDisabled) return;
+    if (disposed || branchPrDetectionDisabled) return;
     const seen = new Set<string>();
     const now = Date.now();
     const allIds = [...store.taskOrder, ...store.collapsedTaskOrder];
@@ -176,14 +190,7 @@ export function startPrChecksSubscription(): () => void {
       const prUrl = taskPrUrl(task);
       if (!prUrl) continue;
       seen.add(taskId);
-      const prev = activeByTaskId.get(taskId);
-      if (prev && prev.prUrl === prUrl && prev.taskName === task.name) continue;
-      activeByTaskId.set(taskId, { prUrl, taskName: task.name });
-      fireAndForget(IPC.StartPrChecksWatcher, {
-        taskId,
-        prUrl,
-        taskName: task.name,
-      });
+      startWatcher(taskId, task, prUrl);
     }
     for (const taskId of [...activeByTaskId.keys()]) {
       if (!seen.has(taskId)) {
@@ -199,6 +206,7 @@ export function startPrChecksSubscription(): () => void {
   scanForBranchPrs();
 
   const cleanup = (): void => {
+    disposed = true;
     clearInterval(branchPrDetectTimer);
     offUpdate();
     for (const taskId of activeByTaskId.keys()) {

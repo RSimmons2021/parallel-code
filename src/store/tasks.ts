@@ -631,7 +631,16 @@ export function updateTaskName(taskId: string, name: string): void {
 }
 
 export function updateTaskBranch(taskId: string, branchName: string): void {
+  const task = store.tasks[taskId];
+  if (!task) return;
+  const branchChanged = task.branchName !== branchName;
   setStore('tasks', taskId, 'branchName', branchName);
+  // prUrl is only ever populated by branch-PR auto-detection, so dropping it
+  // on rename is safe — the next detection pass will repopulate from the new
+  // branch. If a user-editable PR URL is ever added, gate this on a flag.
+  if (branchChanged && task.prUrl) {
+    setStore('tasks', taskId, 'prUrl', undefined);
+  }
 }
 
 export function updateTaskNotes(taskId: string, notes: string): void {

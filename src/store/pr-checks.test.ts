@@ -1,0 +1,127 @@
+import { createRoot } from 'solid-js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { IPC } from '../../electron/ipc/channels';
+
+const { mockFireAndForget, mockInvoke, mockSaveState } = vi.hoisted(() => ({
+  mockFireAndForget: vi.fn(),
+  mockInvoke: vi.fn(),
+  mockSaveState: vi.fn(),
+}));
+
+vi.mock('../lib/ipc', () => ({
+  fireAndForget: mockFireAndForget,
+  invoke: mockInvoke,
+}));
+
+vi.mock('./persistence', () => ({
+  saveState: mockSaveState,
+}));
+
+import { setStore, store } from './core';
+import { startPrChecksSubscription } from './pr-checks';
+
+const flushPromises = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  setStore('taskOrder', []);
+  setStore('collapsedTaskOrder', []);
+  setStore('tasks', {});
+  mockSaveState.mockResolvedValue(undefined);
+  vi.stubGlobal('window', {
+    electron: {
+      ipcRenderer: {
+        on: vi.fn(() => vi.fn()),
+      },
+    },
+    setInterval: vi.fn(() => 1),
+  });
+});
+
+describe('startPrChecksSubscription branch PR detection', () => {
+  it('persists a detected branch PR and starts watching it', async () => {
+    setStore('taskOrder', ['task-1']);
+    setStore('tasks', {
+      'task-1': {
+        id: 'task-1',
+        name: 'Task',
+        projectId: 'project-1',
+        branchName: 'task/task-1',
+        worktreePath: '/repo/.worktrees/task-1',
+        agentIds: [],
+        shellAgentIds: [],
+        notes: '',
+        lastPrompt: '',
+        gitIsolation: 'worktree',
+      },
+    });
+    mockInvoke.mockResolvedValueOnce({ url: 'https://github.com/acme/app/pull/12' });
+
+    let disposeRoot: (() => void) | undefined;
+    createRoot((dispose) => {
+      disposeRoot = dispose;
+      startPrChecksSubscription();
+    });
+    await flushPromises();
+    await flushPromises();
+
+    expect(mockInvoke).toHaveBeenCalledWith(IPC.DetectPrForBranch, {
+      worktreePath: '/repo/.worktrees/task-1',
+      branchName: 'task/task-1',
+    });
+    expect(store.tasks['task-1'].prUrl).toBe('https://github.com/acme/app/pull/12');
+    expect(mockSaveState).toHaveBeenCalledTimes(1);
+    expect(mockFireAndForget).toHaveBeenCalledWith(IPC.StartPrChecksWatcher, {
+      taskId: 'task-1',
+      prUrl: 'https://github.com/acme/app/pull/12',
+      taskName: 'Task',
+    });
+    disposeRoot?.();
+  });
+
+  it('does not keep probing branches after gh is unavailable', async () => {
+    setStore('taskOrder', ['task-1']);
+    setStore('tasks', {
+      'task-1': {
+        id: 'task-1',
+        name: 'Task',
+        projectId: 'project-1',
+        branchName: 'task/task-1',
+        worktreePath: '/repo/.worktrees/task-1',
+        agentIds: [],
+        shellAgentIds: [],
+        notes: '',
+        lastPrompt: '',
+        gitIsolation: 'worktree',
+      },
+    });
+    mockInvoke.mockResolvedValueOnce({ url: null, unavailable: 'missing' });
+
+    let disposeRoot: (() => void) | undefined;
+    createRoot((dispose) => {
+      disposeRoot = dispose;
+      startPrChecksSubscription();
+    });
+    await flushPromises();
+
+    setStore('taskOrder', ['task-1', 'task-2']);
+    setStore('tasks', 'task-2', {
+      id: 'task-2',
+      name: 'Task 2',
+      projectId: 'project-1',
+      branchName: 'task/task-2',
+      worktreePath: '/repo/.worktrees/task-2',
+      agentIds: [],
+      shellAgentIds: [],
+      notes: '',
+      lastPrompt: '',
+      gitIsolation: 'worktree',
+    });
+    await flushPromises();
+
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    expect(store.tasks['task-1'].prUrl).toBeUndefined();
+    expect(store.tasks['task-2'].prUrl).toBeUndefined();
+    disposeRoot?.();
+  });
+});

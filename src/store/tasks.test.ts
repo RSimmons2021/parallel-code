@@ -149,6 +149,7 @@ import {
   markTaskMcpError,
   retryTaskMcpStartup,
   clearTaskLandingReview,
+  updateTaskBranch,
 } from './tasks';
 import { getCoordinatorChildren } from './sidebar-order';
 import { recordTaskMerged } from './completion';
@@ -175,6 +176,35 @@ beforeEach(() => {
   mockDefaultStepsEnabled = false;
   mockInvoke.mockResolvedValue(undefined);
   mockSaveState.mockResolvedValue(undefined);
+});
+
+describe('updateTaskBranch', () => {
+  it('clears an inferred PR URL when the branch changes', () => {
+    mockTasks['task-1'] = {
+      agentIds: [],
+      shellAgentIds: [],
+      branchName: 'task/old',
+      prUrl: 'https://github.com/acme/app/pull/12',
+    };
+
+    updateTaskBranch('task-1', 'task/new');
+
+    expect(mockTasks['task-1'].branchName).toBe('task/new');
+    expect(mockTasks['task-1'].prUrl).toBeUndefined();
+  });
+
+  it('keeps the inferred PR URL when the branch name is unchanged', () => {
+    mockTasks['task-1'] = {
+      agentIds: [],
+      shellAgentIds: [],
+      branchName: 'task/same',
+      prUrl: 'https://github.com/acme/app/pull/12',
+    };
+
+    updateTaskBranch('task-1', 'task/same');
+
+    expect(mockTasks['task-1'].prUrl).toBe('https://github.com/acme/app/pull/12');
+  });
 });
 
 // ─── Coordinator tests ────────────────────────────────────────────────────────

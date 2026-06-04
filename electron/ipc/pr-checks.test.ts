@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { promisify } from 'util';
 
+const { mockStat } = vi.hoisted(() => ({
+  mockStat: vi.fn(),
+}));
+
 vi.mock('child_process', () => {
   const mockExecFile = vi.fn();
   (mockExecFile as unknown as Record<symbol, unknown>)[promisify.custom] = (
@@ -16,6 +20,10 @@ vi.mock('child_process', () => {
     });
   return { execFile: mockExecFile };
 });
+
+vi.mock('fs/promises', () => ({
+  stat: mockStat,
+}));
 
 vi.mock('electron', () => ({
   Notification: class {
@@ -37,6 +45,9 @@ import {
   detectPrUrlForBranch,
   __resetForTests,
   __getStateForTests,
+  __runTickForTests,
+  initPrChecks,
+  refreshPrChecksWatcher,
   startPrChecksWatcher,
   type PrCheckRun,
 } from './pr-checks.js';
@@ -57,6 +68,23 @@ function stubGh(handler: GhHandler): string[][] {
 const run = (name: string, bucket: PrCheckRun['bucket']): PrCheckRun => ({
   name,
   bucket,
+});
+
+const flushPromises = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
+
+function fakeWindow(send: ReturnType<typeof vi.fn>): Parameters<typeof initPrChecks>[0] {
+  return {
+    on: vi.fn(),
+    isDestroyed: () => false,
+    isVisible: () => false,
+    webContents: { send },
+    show: vi.fn(),
+    focus: vi.fn(),
+  } as unknown as Parameters<typeof initPrChecks>[0];
+}
+
+beforeEach(() => {
+  mockStat.mockResolvedValue({ isDirectory: () => true });
 });
 
 describe('summarize', () => {
@@ -206,33 +234,23 @@ describe('detectPrUrlForBranch', () => {
   });
 
   it('finds an open PR for a branch', async () => {
-    const calls = stubGh((_args, cb, cmd) => {
-      if (cmd === 'git') {
-        cb(null, 'abc123\n', '');
-        return;
-      }
+    const calls = stubGh((_args, cb) => {
       cb(
         null,
         JSON.stringify([
           {
             url: 'https://github.com/a/b/pull/11',
             headRefName: 'task/my-branch',
-            headRefOid: 'old',
-          },
-          {
-            url: 'https://github.com/a/b/pull/12',
-            headRefName: 'task/my-branch',
-            headRefOid: 'abc123',
           },
         ]),
         '',
       );
     });
     await expect(detectPrUrlForBranch('/repo/worktree', 'task/my-branch')).resolves.toBe(
-      'https://github.com/a/b/pull/12',
+      'https://github.com/a/b/pull/11',
     );
-    expect(calls[0]).toEqual(['rev-parse', 'task/my-branch']);
-    expect(calls[1]).toEqual([
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toEqual([
       'pr',
       'list',
       '--state',
@@ -240,34 +258,151 @@ describe('detectPrUrlForBranch', () => {
       '--head',
       'task/my-branch',
       '--json',
-      'url,headRefName,headRefOid',
+      'url,headRefName',
       '--limit',
       '20',
     ]);
   });
 
+  it('does not require the local branch head to match the PR head', async () => {
+    stubGh((_args, cb) =>
+      cb(
+        null,
+        JSON.stringify([
+          {
+            url: 'https://github.com/a/b/pull/12',
+            headRefName: 'task/ahead-locally',
+            headRefOid: 'remote-sha',
+          },
+        ]),
+        '',
+      ),
+    );
+    await expect(detectPrUrlForBranch('/repo/worktree', 'task/ahead-locally')).resolves.toBe(
+      'https://github.com/a/b/pull/12',
+    );
+  });
+
   it('returns null when the branch has no open PR', async () => {
-    stubGh((_args, cb, cmd) => cb(null, cmd === 'git' ? 'abc123\n' : JSON.stringify([]), ''));
+    stubGh((_args, cb) => cb(null, JSON.stringify([]), ''));
     await expect(detectPrUrlForBranch('/repo/worktree', 'task/no-pr')).resolves.toBe(null);
   });
 
+  it('returns null without invoking gh when the worktree path is gone', async () => {
+    const err = new Error('missing worktree') as NodeJS.ErrnoException;
+    err.code = 'ENOENT';
+    mockStat.mockRejectedValueOnce(err);
+    const calls = stubGh((_args, cb) => cb(null, JSON.stringify([]), ''));
+
+    await expect(detectPrUrlForBranch('/repo/missing-worktree', 'task/no-pr')).resolves.toBe(null);
+
+    expect(calls).toHaveLength(0);
+  });
+
   it('rejects malformed PR URLs from gh output', async () => {
-    stubGh((_args, cb, cmd) =>
+    stubGh((_args, cb) =>
       cb(
         null,
-        cmd === 'git'
-          ? 'abc123\n'
-          : JSON.stringify([
-              {
-                url: 'https://github.com/a/b/issues/12',
-                headRefName: 'task/issue',
-                headRefOid: 'abc123',
-              },
-            ]),
+        JSON.stringify([
+          {
+            url: 'https://github.com/a/b/issues/12',
+            headRefName: 'task/issue',
+          },
+        ]),
         '',
       ),
     );
     await expect(detectPrUrlForBranch('/repo/worktree', 'task/issue')).resolves.toBe(null);
+  });
+});
+
+describe('refreshPrChecksWatcher', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    __resetForTests();
+  });
+
+  it('does not suppress the first fetched status after a post-push refresh', async () => {
+    const send = vi.fn();
+    initPrChecks(fakeWindow(send));
+    stubGh((_args, cb) =>
+      cb(
+        null,
+        JSON.stringify({
+          state: 'OPEN',
+          headRefOid: 'new-sha',
+          statusCheckRollup: [{ name: 'build', status: 'COMPLETED', conclusion: 'SUCCESS' }],
+        }),
+        '',
+      ),
+    );
+
+    startPrChecksWatcher({
+      taskId: 't1',
+      prUrl: 'https://github.com/a/b/pull/1',
+      taskName: 'test',
+    });
+    refreshPrChecksWatcher('t1');
+    await flushPromises();
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[0][1]).toMatchObject({ taskId: 't1', overall: 'pending' });
+    expect(send.mock.calls[1][1]).toMatchObject({
+      taskId: 't1',
+      overall: 'success',
+      passing: 1,
+    });
+  });
+
+  it('keeps stale post-push status hidden until GitHub reports a new head', async () => {
+    const send = vi.fn();
+    initPrChecks(fakeWindow(send));
+    const statuses = [
+      {
+        state: 'OPEN',
+        headRefOid: 'old-sha',
+        statusCheckRollup: [{ name: 'build', status: 'COMPLETED', conclusion: 'SUCCESS' }],
+      },
+      {
+        state: 'OPEN',
+        headRefOid: 'old-sha',
+        statusCheckRollup: [{ name: 'build', status: 'COMPLETED', conclusion: 'SUCCESS' }],
+      },
+      {
+        state: 'OPEN',
+        headRefOid: 'new-sha',
+        statusCheckRollup: [{ name: 'build', status: 'COMPLETED', conclusion: 'SUCCESS' }],
+      },
+    ];
+    let nextStatus = 0;
+    stubGh((_args, cb) => {
+      const payload = statuses[Math.min(nextStatus, statuses.length - 1)];
+      nextStatus += 1;
+      cb(null, JSON.stringify(payload), '');
+    });
+
+    startPrChecksWatcher({
+      taskId: 't1',
+      prUrl: 'https://github.com/a/b/pull/1',
+      taskName: 'test',
+    });
+    await flushPromises();
+    expect(send).toHaveBeenCalledTimes(1);
+
+    refreshPrChecksWatcher('t1');
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[1][1]).toMatchObject({ taskId: 't1', overall: 'pending' });
+
+    await __runTickForTests();
+    expect(send).toHaveBeenCalledTimes(2);
+
+    await __runTickForTests();
+    expect(send).toHaveBeenCalledTimes(3);
+    expect(send.mock.calls[2][1]).toMatchObject({
+      taskId: 't1',
+      overall: 'success',
+      passing: 1,
+    });
   });
 });
 

@@ -178,6 +178,13 @@ function validatePath(p: unknown, label: string): void {
   if (p.includes('..')) throw new Error(`${label} must not contain ".."`);
 }
 
+function isMissingCommandError(err: unknown, command: string): boolean {
+  const e = err as { path?: unknown; syscall?: unknown };
+  return (
+    e.path === command || (typeof e.syscall === 'string' && e.syscall.includes(`spawn ${command}`))
+  );
+}
+
 /** Validates renderer-supplied args for StartMCPServer before any file I/O. Exported for testing. */
 export function validateStartMCPServerArgs(args: Record<string, unknown>): void {
   validateUUID(args.coordinatorTaskId, 'coordinatorTaskId');
@@ -845,7 +852,10 @@ export function registerAllHandlers(win: BrowserWindow): void {
       .catch((err: unknown) => {
         const code = (err as NodeJS.ErrnoException)?.code;
         const stderr = (err as { stderr?: string })?.stderr ?? '';
-        if (code === 'ENOENT') return { url: null, unavailable: 'missing' };
+        if (code === 'ENOENT' && isMissingCommandError(err, 'gh')) {
+          return { url: null, unavailable: 'missing' };
+        }
+        if (code === 'ENOENT') return { url: null };
         if (/not logged into|authentication required/i.test(stderr)) {
           return { url: null, unavailable: 'auth' };
         }

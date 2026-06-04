@@ -1,6 +1,7 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { Notification, type BrowserWindow } from 'electron';
+import { stat } from 'fs/promises';
 import { IPC } from './channels.js';
 
 const exec = promisify(execFile);
@@ -40,6 +41,7 @@ interface TaskEntry {
   failing: number;
   checks: PrCheckRun[];
   headRefOid: string | null;
+  hasFetched: boolean;
   lastRefreshedAt: number;
   /** SHA at which we last fired a settled notification. null if never notified. */
   lastNotifiedSha: string | null;
@@ -114,6 +116,7 @@ export function startPrChecksWatcher(args: {
         failing: 0,
         checks: [],
         headRefOid: null,
+        hasFetched: false,
         lastRefreshedAt: 0,
         lastNotifiedSha: null,
         lastNotifiedOutcome: null,
@@ -136,6 +139,10 @@ export function refreshPrChecksWatcher(taskId: string): void {
   if (disabled) return;
   const entry = tasks.get(taskId);
   if (!entry) return;
+  // Deliberately leave entry.headRefOid in place: refreshOne uses it as the
+  // pre-push SHA to detect when GitHub has caught up. Clearing it here would
+  // make every fetch within the grace window look like a SHA change and let
+  // stale old-head check data through.
   entry.postPushRefreshUntil = Date.now() + POST_PUSH_REFRESH_GRACE_MS;
   entry.overall = 'pending';
   entry.passing = 0;
@@ -226,10 +233,13 @@ async function refreshOne(taskId: string): Promise<void> {
   const { overall, passing, pending, failing } = summarize(checks);
   const counts = { passing, pending, failing };
   const prevSha = entry.headRefOid;
-  const shaChanged = prevSha !== null && prevSha !== view.headRefOid;
-  const firstRefresh = entry.lastRefreshedAt === 0;
+  const shaChanged = entry.hasFetched && prevSha !== view.headRefOid;
+  const firstRefresh = !entry.hasFetched;
   const waitingForPostPushHead =
-    entry.postPushRefreshUntil !== null && !shaChanged && Date.now() < entry.postPushRefreshUntil;
+    entry.postPushRefreshUntil !== null &&
+    entry.hasFetched &&
+    !shaChanged &&
+    Date.now() < entry.postPushRefreshUntil;
   if (waitingForPostPushHead) {
     entry.lastRefreshedAt = Date.now();
     return;
@@ -257,6 +267,7 @@ async function refreshOne(taskId: string): Promise<void> {
   entry.failing = counts.failing;
   entry.checks = checks;
   entry.headRefOid = view.headRefOid;
+  entry.hasFetched = true;
   entry.lastRefreshedAt = Date.now();
 
   if (nothingChanged) return;
@@ -384,12 +395,7 @@ export async function detectPrUrlForBranch(
   worktreePath: string,
   branchName: string,
 ): Promise<string | null> {
-  const { stdout: headStdout } = await exec('git', ['rev-parse', branchName], {
-    cwd: worktreePath,
-    timeout: GH_TIMEOUT_MS,
-    maxBuffer: GH_MAX_BUFFER,
-  });
-  const localHead = headStdout.trim();
+  if (!(await isDirectory(worktreePath))) return null;
   const { stdout } = await exec(
     'gh',
     [
@@ -400,7 +406,7 @@ export async function detectPrUrlForBranch(
       '--head',
       branchName,
       '--json',
-      'url,headRefName,headRefOid',
+      'url,headRefName',
       '--limit',
       '20',
     ],
@@ -411,11 +417,19 @@ export async function detectPrUrlForBranch(
   const match = parsed.find((item) => {
     if (!item || typeof item !== 'object') return false;
     const pr = item as Record<string, unknown>;
-    return pr['headRefName'] === branchName && pr['headRefOid'] === localHead;
+    return pr['headRefName'] === branchName;
   });
   if (!match || typeof match !== 'object') return null;
   const url = (match as Record<string, unknown>)['url'];
   return typeof url === 'string' && isPrUrl(url) ? url : null;
+}
+
+async function isDirectory(path: string): Promise<boolean> {
+  try {
+    return (await stat(path)).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 /** Single gh call: combines PR state, head SHA, and check runs in one fork.
@@ -533,4 +547,8 @@ export function __getStateForTests(): {
   taskIds: string[];
 } {
   return { disabled, disabledReason, taskIds: Array.from(tasks.keys()) };
+}
+
+export function __runTickForTests(): Promise<void> {
+  return runTick();
 }

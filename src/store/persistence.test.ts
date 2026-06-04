@@ -241,6 +241,58 @@ describe('landing state persistence', () => {
   });
 });
 
+describe('PR URL persistence', () => {
+  it('persists task PR URLs', async () => {
+    setStore('taskOrder', ['task-1']);
+    setStore('tasks', {
+      'task-1': {
+        id: 'task-1',
+        name: 'Task',
+        projectId: 'project-1',
+        branchName: 'task/task-1',
+        worktreePath: '/repo/.worktrees/task-1',
+        agentIds: [],
+        shellAgentIds: [],
+        notes: '',
+        lastPrompt: '',
+        gitIsolation: 'worktree',
+        prUrl: 'https://github.com/acme/app/pull/12',
+      },
+    });
+    mockInvoke.mockResolvedValueOnce(undefined);
+
+    await saveState();
+
+    const saved = JSON.parse(mockInvoke.mock.calls[0][1].json);
+    expect(saved.tasks['task-1'].prUrl).toBe('https://github.com/acme/app/pull/12');
+  });
+
+  it('restores task PR URLs', async () => {
+    const def = agentDef();
+    mockInvoke.mockResolvedValueOnce(
+      JSON.stringify({
+        projects: [{ id: 'project-1', name: 'Repo', path: '/repo', color: 'hsl(0, 70%, 75%)' }],
+        lastProjectId: 'project-1',
+        lastAgentId: null,
+        taskOrder: ['task-1'],
+        collapsedTaskOrder: [],
+        tasks: {
+          'task-1': {
+            ...persistedTask(def),
+            prUrl: 'https://github.com/acme/app/pull/12',
+          },
+        },
+        activeTaskId: 'task-1',
+        sidebarVisible: true,
+      }),
+    );
+
+    await loadState();
+
+    expect(store.tasks['task-1'].prUrl).toBe('https://github.com/acme/app/pull/12');
+  });
+});
+
 // Minimal valid payload — no theme fields — used as a base for theme migration tests.
 function basePayload(overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({
