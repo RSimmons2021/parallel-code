@@ -27,7 +27,13 @@ import {
   readPlanForWorktree,
 } from './plans.js';
 import { startStepsWatcher, stopStepsWatcher, readStepsForWorktree } from './steps.js';
-import { initPrChecks, startPrChecksWatcher, stopPrChecksWatcher, isPrUrl } from './pr-checks.js';
+import {
+  initPrChecks,
+  startPrChecksWatcher,
+  stopPrChecksWatcher,
+  detectPrUrlForBranch,
+  isPrUrl,
+} from './pr-checks.js';
 import { readCoverageSummary } from './coverage.js';
 import { startRemoteServer, getMCPLogs } from '../remote/server.js';
 import { atomicWriteFileSync } from '../mcp/atomic.js';
@@ -829,6 +835,17 @@ export function registerAllHandlers(win: BrowserWindow): void {
   ipcMain.handle(IPC.StopPrChecksWatcher, (_e, args) => {
     assertString(args.taskId, 'taskId');
     stopPrChecksWatcher(args.taskId);
+  });
+  ipcMain.handle(IPC.DetectPrForBranch, (_e, args) => {
+    assertString(args.worktreePath, 'worktreePath');
+    assertString(args.branchName, 'branchName');
+    return detectPrUrlForBranch(args.worktreePath, args.branchName).catch((err: unknown) => {
+      const code = (err as NodeJS.ErrnoException)?.code;
+      const stderr = (err as { stderr?: string })?.stderr ?? '';
+      if (code === 'ENOENT' || /not logged into|authentication required/i.test(stderr)) return null;
+      console.warn('[pr-checks] branch PR detection failed:', (err as Error)?.message ?? err);
+      return null;
+    });
   });
 
   // --- Steps content (one-shot read) ---

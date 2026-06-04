@@ -96,7 +96,13 @@ export function TaskBranchInfoBar(props: TaskBranchInfoBarProps) {
           const buttonTitle = (): string => {
             const c = pr();
             if (!c || c.overall === 'none') return url();
-            return `${c.passing} passing, ${c.pending} pending, ${c.failing} failing`;
+            if (c.overall === 'pending') {
+              return `CI running — ${c.pending} pending, ${c.passing} passing${c.failing ? `, ${c.failing} failing` : ''}`;
+            }
+            if (c.overall === 'success') {
+              return `CI passed — ${c.passing} check${c.passing === 1 ? '' : 's'}`;
+            }
+            return `CI failed — ${c.failing} failing, ${c.passing} passing${c.pending ? `, ${c.pending} pending` : ''}`;
           };
           return (
             <button
@@ -107,19 +113,25 @@ export function TaskBranchInfoBar(props: TaskBranchInfoBarProps) {
             >
               <Show when={dotColor()}>
                 {(color) => (
-                  <div
-                    style={{
-                      width: '7px',
-                      height: '7px',
-                      'border-radius': '50%',
-                      background: color(),
-                      'flex-shrink': '0',
-                      animation:
-                        pr()?.overall === 'pending'
-                          ? 'askcode-pulse 1.4s ease-in-out infinite'
-                          : undefined,
-                    }}
-                  />
+                  <Show
+                    when={pr()?.overall === 'pending'}
+                    fallback={
+                      <div
+                        style={{
+                          width: '7px',
+                          height: '7px',
+                          'border-radius': '50%',
+                          background: color(),
+                          'flex-shrink': '0',
+                        }}
+                      />
+                    }
+                  >
+                    <span
+                      class="inline-spinner"
+                      style={{ width: '10px', height: '10px', color: color() }}
+                    />
+                  </Show>
                 )}
               </Show>
               <svg

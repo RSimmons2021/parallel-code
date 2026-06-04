@@ -136,6 +136,7 @@ export enum IPC {
   // PR CI status
   StartPrChecksWatcher = 'start_pr_checks_watcher',
   StopPrChecksWatcher = 'stop_pr_checks_watcher',
+  DetectPrForBranch = 'detect_pr_for_branch',
   PrChecksUpdate = 'pr_checks_update',
 
   // Logging

@@ -123,6 +123,7 @@ const ALLOWED_CHANNELS = new Set([
   // PR CI status
   'start_pr_checks_watcher',
   'stop_pr_checks_watcher',
+  'detect_pr_for_branch',
   'pr_checks_update',
   // Logging
   'log_from_renderer',

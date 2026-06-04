@@ -352,6 +352,23 @@ export function isPrUrl(url: string): boolean {
   }
 }
 
+export async function detectPrUrlForBranch(
+  worktreePath: string,
+  branchName: string,
+): Promise<string | null> {
+  const { stdout } = await exec(
+    'gh',
+    ['pr', 'list', '--state', 'open', '--head', branchName, '--json', 'url', '--limit', '1'],
+    { cwd: worktreePath, timeout: GH_TIMEOUT_MS, maxBuffer: GH_MAX_BUFFER },
+  );
+  const parsed: unknown = JSON.parse(stdout);
+  if (!Array.isArray(parsed)) return null;
+  const first = parsed[0];
+  if (!first || typeof first !== 'object') return null;
+  const url = (first as Record<string, unknown>)['url'];
+  return typeof url === 'string' && isPrUrl(url) ? url : null;
+}
+
 /** Single gh call: combines PR state, head SHA, and check runs in one fork.
  *  Uses `statusCheckRollup` which bundles check-run data with a normalised
  *  conclusion, so we map that to the same `bucket` taxonomy `gh pr checks`

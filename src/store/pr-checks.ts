@@ -1,10 +1,12 @@
 import { createEffect, onCleanup } from 'solid-js';
 import { createStore, produce, unwrap } from 'solid-js/store';
-import { store } from './core';
-import { fireAndForget } from '../lib/ipc';
+import { setStore, store } from './core';
+import { fireAndForget, invoke } from '../lib/ipc';
 import { IPC } from '../../electron/ipc/channels';
 import { parseGitHubUrl } from '../lib/github-url';
+import { saveState } from './persistence';
 import type { PrChecksOverall, PrChecksUpdatePayload, PrCheckRun } from '../ipc/types';
+import type { Task } from './types';
 
 export interface PrChecksState {
   overall: PrChecksOverall;
@@ -18,6 +20,8 @@ export interface PrChecksState {
 // createStore gives fine-grained per-key reactivity: updating one task's state
 // only re-runs accessors that read that task's key, not every PR-aware view.
 const [prChecks, setPrChecksStore] = createStore<Record<string, PrChecksState>>({});
+const BRANCH_PR_DETECT_INTERVAL_MS = 60_000;
+const BRANCH_PR_DETECT_RETRY_MS = 2 * 60_000;
 
 export function getPrChecks(taskId: string): PrChecksState | undefined {
   return prChecks[taskId];
@@ -43,11 +47,84 @@ function prUrlFor(githubUrl: string | undefined): string | null {
   return githubUrl;
 }
 
+interface BranchPrCandidate {
+  worktreePath: string;
+  branchName: string;
+  key: string;
+}
+
+function branchPrCandidateFor(task: Task): BranchPrCandidate | null {
+  if (prUrlFor(task.githubUrl)) return null;
+  if (task.gitIsolation !== 'worktree') return null;
+  if (!task.worktreePath || !task.branchName) return null;
+  return {
+    worktreePath: task.worktreePath,
+    branchName: task.branchName,
+    key: `${task.worktreePath}\0${task.branchName}`,
+  };
+}
+
 export function startPrChecksSubscription(): () => void {
   // Track which tasks we currently have a watcher registered for. Stores both
   // the PR URL and task name so a rename-only change triggers a refresh of
   // the watcher's display name.
   const activeByTaskId = new Map<string, { prUrl: string; taskName: string }>();
+  const branchProbeByTaskId = new Map<string, { key: string; attemptedAt: number }>();
+  const pendingBranchProbes = new Set<string>();
+
+  const detectBranchPr = (taskId: string, candidate: BranchPrCandidate): void => {
+    if (pendingBranchProbes.has(taskId)) return;
+    pendingBranchProbes.add(taskId);
+    invoke<string | null>(IPC.DetectPrForBranch, {
+      worktreePath: candidate.worktreePath,
+      branchName: candidate.branchName,
+    })
+      .then((url) => {
+        if (!url) return;
+        const task = store.tasks[taskId];
+        if (!task || prUrlFor(task.githubUrl)) return;
+        if (
+          task.worktreePath !== candidate.worktreePath ||
+          task.branchName !== candidate.branchName
+        ) {
+          return;
+        }
+        setStore('tasks', taskId, 'githubUrl', url);
+        void saveState();
+      })
+      .catch((err: unknown) => {
+        console.warn('[pr-checks] branch PR detection failed:', err);
+      })
+      .finally(() => {
+        pendingBranchProbes.delete(taskId);
+      });
+  };
+
+  const scanForBranchPrs = (): void => {
+    const seen = new Set<string>();
+    const now = Date.now();
+    const allIds = [...store.taskOrder, ...store.collapsedTaskOrder];
+    for (const taskId of allIds) {
+      const task = store.tasks[taskId];
+      if (!task) continue;
+      const candidate = branchPrCandidateFor(task);
+      if (!candidate) continue;
+      seen.add(taskId);
+      const prev = branchProbeByTaskId.get(taskId);
+      if (
+        prev &&
+        prev.key === candidate.key &&
+        now - prev.attemptedAt < BRANCH_PR_DETECT_RETRY_MS
+      ) {
+        continue;
+      }
+      branchProbeByTaskId.set(taskId, { key: candidate.key, attemptedAt: now });
+      detectBranchPr(taskId, candidate);
+    }
+    for (const taskId of [...branchProbeByTaskId.keys()]) {
+      if (!seen.has(taskId)) branchProbeByTaskId.delete(taskId);
+    }
+  };
 
   const offUpdate = window.electron.ipcRenderer.on(IPC.PrChecksUpdate, (data: unknown) => {
     if (!data || typeof data !== 'object') return;
@@ -97,9 +174,14 @@ export function startPrChecksSubscription(): () => void {
         fireAndForget(IPC.StopPrChecksWatcher, { taskId });
       }
     }
+    scanForBranchPrs();
   });
 
+  const branchPrDetectTimer = window.setInterval(scanForBranchPrs, BRANCH_PR_DETECT_INTERVAL_MS);
+  scanForBranchPrs();
+
   const cleanup = (): void => {
+    clearInterval(branchPrDetectTimer);
     offUpdate();
     for (const taskId of activeByTaskId.keys()) {
       fireAndForget(IPC.StopPrChecksWatcher, { taskId });

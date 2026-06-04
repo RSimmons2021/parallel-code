@@ -34,6 +34,7 @@ import {
   rollupBucket,
   isPrUrl,
   fetchPrStatus,
+  detectPrUrlForBranch,
   __resetForTests,
   __getStateForTests,
   startPrChecksWatcher,
@@ -195,6 +196,46 @@ describe('fetchPrStatus', () => {
     stubGh((_args, cb) => cb(null, JSON.stringify(null), ''));
     const out = await fetchPrStatus('https://github.com/a/b/pull/1');
     expect(out).toEqual({ state: 'UNKNOWN', headRefOid: '', checks: [] });
+  });
+});
+
+describe('detectPrUrlForBranch', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    __resetForTests();
+  });
+
+  it('finds an open PR for a branch', async () => {
+    const calls = stubGh((_args, cb) =>
+      cb(null, JSON.stringify([{ url: 'https://github.com/a/b/pull/12' }]), ''),
+    );
+    await expect(detectPrUrlForBranch('/repo/worktree', 'task/my-branch')).resolves.toBe(
+      'https://github.com/a/b/pull/12',
+    );
+    expect(calls[0]).toEqual([
+      'pr',
+      'list',
+      '--state',
+      'open',
+      '--head',
+      'task/my-branch',
+      '--json',
+      'url',
+      '--limit',
+      '1',
+    ]);
+  });
+
+  it('returns null when the branch has no open PR', async () => {
+    stubGh((_args, cb) => cb(null, JSON.stringify([]), ''));
+    await expect(detectPrUrlForBranch('/repo/worktree', 'task/no-pr')).resolves.toBe(null);
+  });
+
+  it('rejects malformed PR URLs from gh output', async () => {
+    stubGh((_args, cb) =>
+      cb(null, JSON.stringify([{ url: 'https://github.com/a/b/issues/12' }]), ''),
+    );
+    await expect(detectPrUrlForBranch('/repo/worktree', 'task/issue')).resolves.toBe(null);
   });
 });
 
