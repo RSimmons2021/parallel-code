@@ -20,8 +20,6 @@ import {
   isAutoTrustSettling,
   isAgentAskingQuestion,
   isAgentIdle,
-  getTaskFocusedPanel,
-  setTaskFocusedPanel,
   setTaskLastInputAt,
   isPanelFocused,
   setTaskControl,
@@ -613,8 +611,8 @@ export function PromptInput(props: PromptInputProps) {
     return remaining > 0 ? `Auto-sending in ${remaining}s…` : 'Sending when coordinator is ready…';
   };
 
-  // When the agent shows a question/dialog, focus the terminal so the user
-  // can interact with the TUI directly.
+  // When the agent shows a question/dialog, block automation so it does not
+  // type into the TUI while leaving the user's current focus alone.
   const questionActive = () => isAgentAskingQuestion(props.agentId);
   const isRecentPromptEcho = (tail: string): boolean => {
     const task = store.tasks[props.taskId];
@@ -626,11 +624,6 @@ export function PromptInput(props: PromptInputProps) {
     const snippet = stripAnsi(lastPrompt).slice(0, 40);
     return Boolean(snippet && stripAnsi(tail).includes(snippet));
   };
-  createEffect(() => {
-    if (questionActive() && getTaskFocusedPanel(props.taskId) === 'prompt') {
-      setTaskFocusedPanel(props.taskId, 'ai-terminal');
-    }
-  });
   createEffect(
     on(
       // eslint-disable-next-line solid/reactivity
@@ -659,8 +652,7 @@ export function PromptInput(props: PromptInputProps) {
           markTaskUserActivity(props.taskId);
           setTaskTerminalInputPendingFromQuestion(props.taskId);
           setTaskTerminalInputPending(props.taskId, true);
-          setTaskFocusedPanel(props.taskId, 'ai-terminal');
-          showNotification('Claude needs input. Answer in the terminal when ready.');
+          showNotification('Agent needs input. Answer in the terminal when ready.');
         }
         if (questionJustResolved) {
           // Only clear if pending was set by the question handoff and not since
