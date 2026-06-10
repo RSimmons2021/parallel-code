@@ -15,7 +15,9 @@ import {
   setActiveTask,
   addAgentToTask,
   closeAgentInTask,
+  showNotification,
 } from '../store/store';
+import { warn as logWarn } from '../lib/log';
 import { InfoBar } from './InfoBar';
 import { TerminalView } from './TerminalView';
 import { Dialog } from './Dialog';
@@ -200,8 +202,12 @@ export function TaskAITerminal(props: TaskAITerminalProps) {
           allowOverflow
           title={props.task.lastPrompt || infoBarStatus().title}
           onDblClick={() => {
-            if (props.task.lastPrompt && props.promptHandle && !props.promptHandle.getText())
-              props.promptHandle.setText(props.task.lastPrompt);
+            const prompt = props.task.lastPrompt;
+            if (!prompt) return;
+            navigator.clipboard
+              .writeText(prompt)
+              .then(() => showNotification('Prompt copied to clipboard'))
+              .catch((err: unknown) => logWarn('clipboard', 'writeText failed', { err }));
           }}
         >
           <div
