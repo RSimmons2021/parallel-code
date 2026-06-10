@@ -831,7 +831,8 @@ export function startRemoteServer(opts: {
       const msg = parseClientMessage(String(raw));
       if (!msg) return;
 
-      // Handle first-message auth. Only coordinator token grants WS access.
+      // Handle first-message auth. Coordinator and mobile tokens grant WS
+      // access; subtask tokens are denied.
       if (msg.type === 'auth') {
         const tokenType = classifyCandidate(msg.token);
         if (tokenType === 'coordinator' || tokenType === 'mobile') {

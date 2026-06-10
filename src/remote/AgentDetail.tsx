@@ -180,6 +180,9 @@ export function AgentDetail(props: AgentDetailProps) {
   function handleSend() {
     const text = inputText();
     if (!text) return;
+    // Keep the typed text while disconnected — send() silently drops
+    // messages on a non-open socket, so clearing here would lose input.
+    if (status() !== 'connected') return;
     const id = ++lastSendId;
     // Send text and Enter separately — TUI apps (Claude Code, Codex)
     // treat \r inside a pasted block as a literal, not as confirmation.

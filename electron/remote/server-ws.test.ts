@@ -60,9 +60,11 @@ function connectAndAuth(token: string): Promise<WebSocket> {
 function waitForClose(ws: WebSocket): Promise<number> {
   return new Promise((resolve) => {
     // Drop connectAndAuth's rejecting close/error listeners — from here on
-    // a close is the expected outcome, not a failure.
+    // a close is the expected outcome, not a failure. Keep a no-op error
+    // listener: an 'error' with no listener throws on EventEmitters.
     ws.removeAllListeners('close');
     ws.removeAllListeners('error');
+    ws.on('error', () => {});
     ws.on('close', (code) => resolve(code));
   });
 }
@@ -105,6 +107,31 @@ describe('mobile token over WebSocket', () => {
     ws.send(JSON.stringify({ type: 'kill', agentId: 'agent-1' }));
     expect(await closed).toBe(4003);
     expect(pty.killAgent).not.toHaveBeenCalled();
+  });
+});
+
+describe('unauthenticated WebSocket clients', () => {
+  function connectRaw(): Promise<WebSocket> {
+    return new Promise((resolve, reject) => {
+      const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`);
+      ws.on('open', () => resolve(ws));
+      ws.on('error', reject);
+    });
+  }
+
+  it('closes 4001 when input is sent before auth, without reaching the PTY', async () => {
+    const ws = await connectRaw();
+    const closed = waitForClose(ws);
+    ws.send(JSON.stringify({ type: 'input', agentId: 'agent-1', data: 'hi' }));
+    expect(await closed).toBe(4001);
+    expect(pty.writeToAgent).not.toHaveBeenCalled();
+  });
+
+  it('closes 4001 on auth with an unknown token', async () => {
+    const ws = await connectRaw();
+    const closed = waitForClose(ws);
+    ws.send(JSON.stringify({ type: 'auth', token: 'not-a-real-token' }));
+    expect(await closed).toBe(4001);
   });
 });
 
