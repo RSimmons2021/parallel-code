@@ -273,7 +273,8 @@ export function startRemoteServer(opts: {
           return;
         }
       }
-      // Mobile token: read-only access to agent status only.
+      // Mobile token: read-only REST access to agent status only (terminal
+      // input goes over the WebSocket, not REST).
       // Task/coordinator routes are intentionally excluded — the mobile view shows
       // agent terminals, not coordinator sub-tasks, and the mobile token is embedded
       // in a QR-code URL reachable by anyone on the local network.
@@ -852,9 +853,11 @@ export function startRemoteServer(opts: {
         return;
       }
 
-      // Mobile clients are read-only — block all PTY mutation messages
+      // Mobile clients may type into agent terminals (`input`) but cannot
+      // resize the PTY (desktop owns the geometry) or kill agents — the
+      // mobile token travels in a QR-code URL, so keep its blast radius small.
       if (clientTokenTypes.get(ws) === 'mobile') {
-        if (msg.type === 'input' || msg.type === 'resize' || msg.type === 'kill') {
+        if (msg.type === 'resize' || msg.type === 'kill') {
           ws.close(4003, 'Forbidden');
           return;
         }

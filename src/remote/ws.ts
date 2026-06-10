@@ -110,6 +110,10 @@ export function send(msg: Record<string, unknown>): void {
   }
 }
 
+export function sendInput(agentId: string, data: string): void {
+  send({ type: 'input', agentId, data });
+}
+
 export function subscribeAgent(agentId: string): void {
   send({ type: 'subscribe', agentId });
 }
