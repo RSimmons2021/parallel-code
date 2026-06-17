@@ -107,6 +107,17 @@ function getTerminalBindings() {
   return resolvedBindings().filter((b) => b.layer === 'terminal');
 }
 
+// Browser-style find: amber highlight for all matches, orange for the active
+// one. Like a browser, the highlight palette is fixed rather than theme-derived.
+// Overview-ruler colors must be solid; match backgrounds carry alpha so the
+// underlying glyphs stay legible on both light and dark terminals.
+const SEARCH_DECORATIONS = {
+  matchBackground: 'rgba(255, 213, 79, 0.4)',
+  matchOverviewRuler: '#ffd54f',
+  activeMatchBackground: 'rgba(255, 138, 0, 0.85)',
+  activeMatchColorOverviewRuler: '#ff8a00',
+} as const;
+
 export function TerminalView(props: TerminalViewProps) {
   let containerRef!: HTMLDivElement;
   let term: Terminal | undefined;
@@ -116,26 +127,30 @@ export function TerminalView(props: TerminalViewProps) {
   let searchInputRef: HTMLInputElement | undefined;
   const [searchOpen, setSearchOpen] = createSignal(false);
   const [searchQuery, setSearchQuery] = createSignal('');
-  const [searchResultIndex, setSearchResultIndex] = createSignal(-1);
-  const [searchResultCount, setSearchResultCount] = createSignal(0);
+  // resultIndex is -1 when there's no active match (or when xterm's match
+  // threshold is exceeded); count is the total. They always change together.
+  const [searchResult, setSearchResult] = createSignal({ index: -1, count: 0 });
 
-  // Browser-style find: amber highlight for all matches, orange for the active
-  // one. Overview-ruler colors must be solid; match backgrounds carry alpha so
-  // the underlying glyphs stay legible regardless of theme.
-  const SEARCH_DECORATIONS = {
-    matchBackground: 'rgba(255, 213, 79, 0.4)',
-    matchOverviewRuler: '#ffd54f',
-    activeMatchBackground: 'rgba(255, 138, 0, 0.85)',
-    activeMatchColorOverviewRuler: '#ff8a00',
-  } as const;
+  const resetSearchResults = () => setSearchResult({ index: -1, count: 0 });
+
+  // The find addon is loaded lazily on first use: most terminals are never
+  // searched, and an idle addon keeps a per-write listener alive on every pane.
+  function ensureSearchAddon(): SearchAddon | undefined {
+    if (searchAddon || !term) return searchAddon;
+    searchAddon = new SearchAddon();
+    term.loadAddon(searchAddon);
+    searchAddon.onDidChangeResults(({ resultIndex, resultCount }) =>
+      setSearchResult({ index: resultIndex, count: resultCount }),
+    );
+    return searchAddon;
+  }
 
   function runSearch(direction: 'next' | 'prev', incremental = false) {
     if (!searchAddon) return;
     const q = searchQuery();
     if (!q) {
       searchAddon.clearDecorations();
-      setSearchResultIndex(-1);
-      setSearchResultCount(0);
+      resetSearchResults();
       return;
     }
     const opts = { incremental, decorations: SEARCH_DECORATIONS };
@@ -157,9 +172,10 @@ export function TerminalView(props: TerminalViewProps) {
       searchInputRef?.select();
       return;
     }
+    ensureSearchAddon();
     // Seed from a single-line selection, like a browser's Find does.
     const sel = term.getSelection();
-    if (sel && !sel.includes('\n') && sel.length <= 200) setSearchQuery(sel);
+    if (sel && !sel.includes('\n')) setSearchQuery(sel);
     setSearchOpen(true);
     if (searchQuery()) runSearch('next');
   }
@@ -167,8 +183,7 @@ export function TerminalView(props: TerminalViewProps) {
   function closeSearch() {
     setSearchOpen(false);
     searchAddon?.clearDecorations();
-    setSearchResultIndex(-1);
-    setSearchResultCount(0);
+    resetSearchResults();
     term?.focus();
   }
 
@@ -215,14 +230,6 @@ export function TerminalView(props: TerminalViewProps) {
     fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
     term.loadAddon(new WebLinksAddon(openTerminalHttpLinkWithModifier));
-
-    searchAddon = new SearchAddon();
-    term.loadAddon(searchAddon);
-    // Keep the find-bar counter in sync with xterm's match results.
-    searchAddon.onDidChangeResults(({ resultIndex, resultCount }) => {
-      setSearchResultIndex(resultIndex);
-      setSearchResultCount(resultCount);
-    });
 
     term.open(containerRef);
 
@@ -830,6 +837,8 @@ export function TerminalView(props: TerminalViewProps) {
       onOutput.cleanup?.();
       webglAddon?.dispose();
       webglAddon = undefined;
+      searchAddon?.dispose();
+      searchAddon = undefined;
       unregisterTerminal(agentId);
       if (ptyPaused && !taskPtyDetached()) {
         fireAndForget(IPC.ResumeAgent, { agentId });
@@ -880,8 +889,8 @@ export function TerminalView(props: TerminalViewProps) {
       <Show when={searchOpen()}>
         <TerminalSearchOverlay
           query={searchQuery()}
-          resultIndex={searchResultIndex()}
-          resultCount={searchResultCount()}
+          resultIndex={searchResult().index}
+          resultCount={searchResult().count}
           onInput={onSearchInput}
           onNext={() => runSearch('next')}
           onPrev={() => runSearch('prev')}

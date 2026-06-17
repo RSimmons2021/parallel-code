@@ -42,7 +42,9 @@ export function TerminalSearchOverlay(props: TerminalSearchOverlayProps): JSX.El
       else props.onNext();
     } else if (e.key === 'Escape') {
       e.preventDefault();
-      // Stop the app-level Esc handler from also reacting (e.g. closing panels).
+      // Defensive: the app's window-level Esc handler already ignores keys while
+      // an input is focused, but stop propagation anyway so this Esc only ever
+      // closes the find bar — never an enclosing panel.
       e.stopPropagation();
       props.onClose();
     }
