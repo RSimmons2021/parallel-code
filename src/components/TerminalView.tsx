@@ -333,13 +333,21 @@ export function TerminalView(props: TerminalViewProps) {
     props.onStepNavReady?.(stepNavApi);
     onCleanup(() => props.onStepNavReady?.(undefined));
 
-    // Re-anchor on each new prompt. Deferred: a prompt set before this mount has
-    // no known on-screen position (same reason historical steps aren't jumpable).
+    // Re-anchor on each new prompt sent to THIS agent. Deferred: a prompt set
+    // before this mount has no known on-screen position (same reason historical
+    // steps aren't jumpable). The agent gate keeps other panes in a multi-agent
+    // task from anchoring a marker at an unrelated line.
+    //
+    // Timing note: on the input-box path lastPrompt is set just before the echo
+    // renders (output is RAF-batched), so the marker can land a line or two above
+    // where the prompt visually appears. scrollToLine puts it near the top of the
+    // viewport, so the prompt is still on screen — close enough to orient.
     createEffect(
       on(
         () => store.tasks[taskId]?.lastPrompt,
         (prompt) => {
           if (!term || !prompt) return;
+          if (store.tasks[taskId]?.lastPromptAgentId !== agentId) return;
           lastPromptMarker?.dispose();
           lastPromptMarker = term.registerMarker(0) ?? undefined;
         },
