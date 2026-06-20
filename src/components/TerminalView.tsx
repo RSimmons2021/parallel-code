@@ -1,4 +1,4 @@
-import { onMount, onCleanup, createEffect, createSignal, Show } from 'solid-js';
+import { onMount, onCleanup, createEffect, createSignal, on, Show } from 'solid-js';
 import { Terminal, type IMarker } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
@@ -76,12 +76,15 @@ interface TerminalViewProps {
   onFileLink?: (filePath: string) => void;
   onReady?: (focusFn: () => void) => void;
   onBufferReady?: (getBuffer: () => string) => void;
-  /** Exposes step-bookmark API: `mark(i)` registers a marker at the current line for
-   *  step index `i`; `jump(i)` scrolls the viewport so that marker is visible.
+  /** Exposes terminal-bookmark API: `mark(i)` registers a marker at the current line
+   *  for step index `i`; `jump(i)` scrolls the viewport so that marker is visible;
+   *  `jumpToPrompt()` scrolls to the line where the most recent user prompt landed.
    *  Called with `undefined` on unmount so the consumer can reset its state — important
    *  on agent restart, where this component remounts but the parent does not. */
   onStepNavReady?: (
-    api: { mark: (i: number) => void; jump: (i: number) => boolean } | undefined,
+    api:
+      | { mark: (i: number) => void; jump: (i: number) => boolean; jumpToPrompt: () => boolean }
+      | undefined,
   ) => void;
   fontSize?: number;
   autoFocus?: boolean;
@@ -304,6 +307,10 @@ export function TerminalView(props: TerminalViewProps) {
     // limit xterm disposes it, in which case `jump` returns false so the caller can no-op.
     // The map is owned by xterm and freed implicitly when term.dispose() runs in onCleanup.
     const stepMarkers = new Map<number, IMarker>();
+    // Anchor the line where the most recent user prompt landed so the info-bar
+    // prompt row can scroll back to it. Both direct terminal typing and the
+    // input box funnel through the task's lastPrompt, so one watch covers both.
+    let lastPromptMarker: IMarker | undefined;
     const stepNavApi = {
       mark(i: number) {
         if (!term || stepMarkers.has(i)) return;
@@ -317,9 +324,28 @@ export function TerminalView(props: TerminalViewProps) {
         term.scrollToLine(m.line);
         return true;
       },
+      jumpToPrompt(): boolean {
+        if (!term || !lastPromptMarker || lastPromptMarker.isDisposed) return false;
+        term.scrollToLine(lastPromptMarker.line);
+        return true;
+      },
     };
     props.onStepNavReady?.(stepNavApi);
     onCleanup(() => props.onStepNavReady?.(undefined));
+
+    // Re-anchor on each new prompt. Deferred: a prompt set before this mount has
+    // no known on-screen position (same reason historical steps aren't jumpable).
+    createEffect(
+      on(
+        () => store.tasks[taskId]?.lastPrompt,
+        (prompt) => {
+          if (!term || !prompt) return;
+          lastPromptMarker?.dispose();
+          lastPromptMarker = term.registerMarker(0) ?? undefined;
+        },
+        { defer: true },
+      ),
+    );
 
     props.onBufferReady?.(() => {
       if (!term) return '';
