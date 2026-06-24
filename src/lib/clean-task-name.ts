@@ -84,6 +84,22 @@ export function isAutoTaskNameFromPrompt(name: string, prompt: string): boolean 
   );
 }
 
+const DEFAULT_TASK_NAME_PATTERN = /^Task (\d+)$/;
+
+/**
+ * Fallback name for a task created with neither a prompt nor a typed name.
+ * Picks the next number above any existing "Task N" so a burst of unnamed
+ * tasks gets "Task 1", "Task 2", … instead of all colliding on "Task 1".
+ */
+export function nextDefaultTaskName(existingNames: string[]): string {
+  let max = 0;
+  for (const existing of existingNames) {
+    const match = DEFAULT_TASK_NAME_PATTERN.exec(existing.trim());
+    if (match) max = Math.max(max, parseInt(match[1], 10));
+  }
+  return `Task ${max + 1}`;
+}
+
 export function shouldUsePromptDerivedTaskName(
   name: string,
   prompt: string,

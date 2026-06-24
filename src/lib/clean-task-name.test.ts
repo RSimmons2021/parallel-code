@@ -6,6 +6,7 @@ import {
   cleanTaskName,
   displayTaskNameFromPrompt,
   isAutoTaskNameFromPrompt,
+  nextDefaultTaskName,
   shouldUsePromptDerivedTaskName,
 } from './clean-task-name';
 
@@ -106,5 +107,31 @@ describe('shouldUsePromptDerivedTaskName', () => {
     expect(shouldUsePromptDerivedTaskName('improve the task name generation so it', prompt)).toBe(
       true,
     );
+  });
+});
+
+describe('nextDefaultTaskName', () => {
+  it('returns "Task 1" when there are no existing tasks', () => {
+    expect(nextDefaultTaskName([])).toBe('Task 1');
+  });
+
+  it('returns "Task 1" when no existing name matches the pattern', () => {
+    expect(nextDefaultTaskName(['Add auth', 'Fix bug'])).toBe('Task 1');
+  });
+
+  it('picks the next number above the highest existing "Task N"', () => {
+    expect(nextDefaultTaskName(['Task 1', 'Task 2'])).toBe('Task 3');
+  });
+
+  it('uses the max, not the count, so gaps do not cause collisions', () => {
+    expect(nextDefaultTaskName(['Task 5'])).toBe('Task 6');
+  });
+
+  it('ignores names that only resemble the pattern', () => {
+    expect(nextDefaultTaskName(['Task 1 done', 'Task two', 'Subtask 9'])).toBe('Task 1');
+  });
+
+  it('tolerates surrounding whitespace on existing names', () => {
+    expect(nextDefaultTaskName(['  Task 3  '])).toBe('Task 4');
   });
 });

@@ -36,7 +36,7 @@ import {
   branchPrefixConflictError,
 } from '../lib/branch-name';
 import { SegmentedButtons } from './SegmentedButtons';
-import { autoTaskNameFromPrompt } from '../lib/clean-task-name';
+import { autoTaskNameFromPrompt, nextDefaultTaskName } from '../lib/clean-task-name';
 import { extractGitHubUrl } from '../lib/github-url';
 import { theme, sectionLabelStyle, bannerStyle } from '../lib/theme';
 import { isMac } from '../lib/platform';
@@ -502,6 +502,8 @@ export function NewTaskDialog(props: NewTaskDialogProps) {
     }
   }
 
+  // Name derived from what the user typed: the trimmed name, else a concise
+  // name from the prompt. Empty when neither is provided.
   const effectiveName = () => {
     const n = name().trim();
     if (n) return n;
@@ -511,10 +513,14 @@ export function NewTaskDialog(props: NewTaskDialogProps) {
     return autoTaskNameFromPrompt(p);
   };
 
+  // Name actually used to create the task. Falls back to "Task N" so a task can
+  // be created with neither a prompt nor a typed name.
+  const resolvedName = () =>
+    effectiveName() || nextDefaultTaskName(Object.values(store.tasks).map((t) => t.name));
+
   const branchPreview = () => {
-    const n = effectiveName();
     const prefix = sanitizeBranchPrefix(branchPrefix());
-    return n ? `${prefix}/${toBranchName(n)}` : '';
+    return `${prefix}/${toBranchName(resolvedName())}`;
   };
 
   const branchPrefixConflict = createMemo(() => {
@@ -548,13 +554,12 @@ export function NewTaskDialog(props: NewTaskDialogProps) {
   };
 
   const canSubmit = () => {
-    const hasContent = !!effectiveName();
+    // No name/prompt requirement — an empty task defaults to "Task N".
     // Block submit while branches load — and require a resolved base branch
     // for git projects — so a task can't be created with a stale or empty
     // base branch (e.g. after a failed branch fetch).
     const branchOk = isNonGitProject() || (!!baseBranch() && !branchesError());
     return (
-      hasContent &&
       !!selectedProjectId() &&
       !loading() &&
       !branchesLoading() &&
@@ -566,8 +571,7 @@ export function NewTaskDialog(props: NewTaskDialogProps) {
   async function handleSubmit(e: Event) {
     e.preventDefault();
     const manualName = name().trim();
-    const n = effectiveName();
-    if (!n) return;
+    const n = resolvedName();
 
     const agent = selectedAgent();
     if (!agent) {
@@ -779,7 +783,7 @@ export function NewTaskDialog(props: NewTaskDialogProps) {
               type="text"
               value={name()}
               onInput={(e) => setName(e.currentTarget.value)}
-              placeholder={effectiveName() || 'Add user authentication'}
+              placeholder={resolvedName()}
               style={{
                 background: theme.bgInput,
                 border: `1px solid ${theme.border}`,
