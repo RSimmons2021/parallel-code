@@ -1,12 +1,13 @@
-import { getProjectPath } from './projects';
 import { type AskProvider } from '../lib/ask-once';
 import { trackedAskOnce } from './telemetry';
 
 /**
- * Eval Arena — a lightweight LLM eval harness. Runs a prompt/system under test
- * across a golden dataset, scoring each case with deterministic assertions and
- * an optional LLM-judge, then aggregates a pass rate. Uses the same one-shot
- * LLM plumbing as auto-split (AskAboutCode via askOnce).
+ * Eval harness primitives. Runs a prompt/system under test across a golden
+ * dataset, scoring each case with deterministic assertions and an optional
+ * LLM-judge. Supports multiple trials per case to measure non-determinism via
+ * pass@k (≥1 success) and pass^k (all k succeed) — the metrics Anthropic and the
+ * eval platforms standardize on. Uses the metered one-shot LLM plumbing
+ * (`trackedAskOnce`). The persisted suite layer lives in `eval-suites.ts`.
  */
 
 export interface EvalCase {
@@ -16,14 +17,12 @@ export interface EvalCase {
   expected: string;
   /** Optional substring assertion. */
   contains: string;
+  /** Graduated into the regression suite — a case that must keep passing. */
+  regression?: boolean;
 }
 
 export function emptyCase(): EvalCase {
   return { id: crypto.randomUUID().slice(0, 8), input: '', expected: '', contains: '' };
-}
-
-export function defaultCases(): EvalCase[] {
-  return [emptyCase(), emptyCase()];
 }
 
 export interface EvalCheck {
@@ -34,17 +33,40 @@ export interface EvalCheck {
 export interface EvalCaseResult {
   caseId: string;
   input: string;
+  /** Last trial's output (shown in the UI). */
   output: string;
+  /** Last trial's checks. */
   checks: EvalCheck[];
   judgeScore?: number;
   judgeReason?: string;
+  /** pass@k — at least one trial passed. The headline per-case verdict. */
   pass: boolean;
+  /** pass^k — every trial passed (consistency). */
+  passHat: boolean;
+  trials: number;
+  trialPasses: number;
+  /** Optional human override applied after the run. */
+  humanVerdict?: 'pass' | 'fail';
   error?: string;
 }
 
 export interface EvalRun {
   results: EvalCaseResult[];
+  /** Mean pass@k across cases. */
   passRate: number;
+  /** Mean pass^k across cases. */
+  passHatRate: number;
+  trials: number;
+}
+
+export interface RunCaseOpts {
+  systemPrompt: string;
+  useJudge: boolean;
+  judgeRubric: string;
+  cwd: string;
+  projectId: string;
+  provider: AskProvider;
+  trials: number;
 }
 
 function norm(s: string): string {
@@ -100,75 +122,96 @@ ${output}`;
   return { score: 0, pass: false, reason: 'judge response could not be parsed' };
 }
 
-export async function runEval(opts: {
-  systemPrompt: string;
-  cases: EvalCase[];
-  useJudge: boolean;
-  judgeRubric: string;
-  projectId: string;
-  provider: AskProvider;
-  onProgress?: (done: number, total: number) => void;
-}): Promise<EvalRun> {
-  const cwd = getProjectPath(opts.projectId);
-  if (!cwd) throw new Error('Project not found');
-
-  const cases = opts.cases.filter((c) => c.input.trim().length > 0);
-  if (cases.length === 0) throw new Error('Add at least one case with an input');
-
-  const results: EvalCaseResult[] = [];
-  let i = 0;
-  for (const c of cases) {
-    opts.onProgress?.(i, cases.length);
-    try {
-      const output = await trackedAskOnce(
-        fillTemplate(opts.systemPrompt, c.input),
-        cwd,
-        opts.provider,
-        { kind: 'eval', label: c.input, projectId: opts.projectId },
-      );
-      const checks: EvalCheck[] = [];
-      if (c.expected.trim()) {
-        checks.push({ name: 'matches expected', pass: norm(output).includes(norm(c.expected)) });
-      }
-      if (c.contains.trim()) {
-        checks.push({
-          name: `contains "${c.contains.trim()}"`,
-          pass: norm(output).includes(norm(c.contains)),
-        });
-      }
-      let judgeScore: number | undefined;
-      let judgeReason: string | undefined;
-      if (opts.useJudge && opts.judgeRubric.trim()) {
-        const j = await judge(
-          opts.judgeRubric,
-          c.input,
-          c.expected,
-          output,
-          cwd,
-          opts.provider,
-          opts.projectId,
-        );
-        judgeScore = j.score;
-        judgeReason = j.reason;
-        checks.push({ name: `judge ${Math.round(j.score * 100)}%`, pass: j.pass });
-      }
-      // A case with no checks defaults to a pass (it ran without error).
-      const pass = checks.length === 0 ? true : checks.every((ch) => ch.pass);
-      results.push({ caseId: c.id, input: c.input, output, checks, judgeScore, judgeReason, pass });
-    } catch (e) {
-      results.push({
-        caseId: c.id,
-        input: c.input,
-        output: '',
-        checks: [],
-        pass: false,
-        error: e instanceof Error ? e.message : String(e),
-      });
-    }
-    i++;
+/** Run a single trial of one case: produce output and score the assertions. */
+async function runTrial(
+  c: EvalCase,
+  opts: RunCaseOpts,
+): Promise<{ output: string; checks: EvalCheck[]; judgeScore?: number; judgeReason?: string }> {
+  const output = await trackedAskOnce(
+    fillTemplate(opts.systemPrompt, c.input),
+    opts.cwd,
+    opts.provider,
+    {
+      kind: 'eval',
+      label: c.input,
+      projectId: opts.projectId,
+    },
+  );
+  const checks: EvalCheck[] = [];
+  if (c.expected.trim()) {
+    checks.push({ name: 'matches expected', pass: norm(output).includes(norm(c.expected)) });
   }
-  opts.onProgress?.(cases.length, cases.length);
+  if (c.contains.trim()) {
+    checks.push({
+      name: `contains "${c.contains.trim()}"`,
+      pass: norm(output).includes(norm(c.contains)),
+    });
+  }
+  let judgeScore: number | undefined;
+  let judgeReason: string | undefined;
+  if (opts.useJudge && opts.judgeRubric.trim()) {
+    const j = await judge(
+      opts.judgeRubric,
+      c.input,
+      c.expected,
+      output,
+      opts.cwd,
+      opts.provider,
+      opts.projectId,
+    );
+    judgeScore = j.score;
+    judgeReason = j.reason;
+    checks.push({ name: `judge ${Math.round(j.score * 100)}%`, pass: j.pass });
+  }
+  return { output, checks, judgeScore, judgeReason };
+}
 
-  const passed = results.filter((r) => r.pass).length;
-  return { results, passRate: results.length ? passed / results.length : 0 };
+/** Run all k trials for one case and fold them into a single result. */
+export async function runCase(c: EvalCase, opts: RunCaseOpts): Promise<EvalCaseResult> {
+  const k = Math.max(1, opts.trials);
+  let trialPasses = 0;
+  let last: Awaited<ReturnType<typeof runTrial>> | undefined;
+  try {
+    for (let t = 0; t < k; t++) {
+      last = await runTrial(c, opts);
+      // A trial with no checks defaults to a pass (it ran without error).
+      const trialPass = last.checks.length === 0 ? true : last.checks.every((ch) => ch.pass);
+      if (trialPass) trialPasses++;
+    }
+    return {
+      caseId: c.id,
+      input: c.input,
+      output: last?.output ?? '',
+      checks: last?.checks ?? [],
+      judgeScore: last?.judgeScore,
+      judgeReason: last?.judgeReason,
+      pass: trialPasses >= 1,
+      passHat: trialPasses === k,
+      trials: k,
+      trialPasses,
+    };
+  } catch (e) {
+    return {
+      caseId: c.id,
+      input: c.input,
+      output: '',
+      checks: [],
+      pass: false,
+      passHat: false,
+      trials: k,
+      trialPasses,
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
+/** Aggregate per-case results into a run, honoring any human overrides. */
+export function aggregateRun(results: EvalCaseResult[], trials: number): EvalRun {
+  const verdict = (r: EvalCaseResult) => (r.humanVerdict ? r.humanVerdict === 'pass' : r.pass);
+  const passed = results.filter(verdict).length;
+  const passedHat = results.filter((r) =>
+    r.humanVerdict ? r.humanVerdict === 'pass' : r.passHat,
+  ).length;
+  const n = results.length || 1;
+  return { results, passRate: passed / n, passHatRate: passedHat / n, trials };
 }
