@@ -8,35 +8,38 @@
     'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
     monospace;
 
-  --bg: radial-gradient(120% 120% at 20% 0%, #253848 0%, #151d26 55%, #101418 100%);
-  --bg-elevated: #1c2630;
-  --bg-input: #1a232e;
-  --bg-hover: #253240;
-  --bg-selected: #1c3e55;
-  --bg-selected-subtle: #1c3e5540;
+  --bg:
+    radial-gradient(120% 105% at 14% -10%, rgba(148, 168, 153, 0.2) 0%, transparent 42%),
+    radial-gradient(95% 80% at 96% 108%, rgba(255, 68, 58, 0.11) 0%, transparent 40%),
+    linear-gradient(145deg, #0a0b0b 0%, #101110 48%, #070808 100%);
+  --bg-elevated: #171816;
+  --bg-input: #1d1e1b;
+  --bg-hover: #242622;
+  --bg-selected: #2a2e27;
+  --bg-selected-subtle: #2a2e2760;
 
-  --border: #2e3e50;
-  --border-subtle: #222e3a;
-  --border-focus: #2ec8ff;
+  --border: #353733;
+  --border-subtle: #242623;
+  --border-focus: #f1eee4;
 
-  --fg: #d7e4f0;
-  --fg-muted: #9bb0c3;
-  --fg-subtle: #678197;
+  --fg: #f1efe8;
+  --fg-muted: #b8b4aa;
+  --fg-subtle: #7f7b72;
 
-  --accent: #2ec8ff;
-  --accent-hover: #59d7ff;
-  --accent-text: #031018;
-  --link: #73dfff;
+  --accent: #f1eee4;
+  --accent-hover: #ffffff;
+  --accent-text: #070807;
+  --link: #a9f7cc;
 
-  --success: #2fd198;
-  --error: #ff5f73;
-  --warning: #ffc569;
+  --success: #40ee77;
+  --error: #ff4f45;
+  --warning: #d6b35f;
 
-  --island-bg: #192028;
-  --island-border: #2e3e50;
-  --island-radius: 12px;
-  --task-container-bg: #151e28;
-  --task-panel-bg: #1c2630;
+  --island-bg: #151614;
+  --island-border: #343631;
+  --island-radius: 18px;
+  --task-container-bg: #10110f;
+  --task-panel-bg: #151613;
 
   --shadow-soft: 0 14px 30px rgba(0, 0, 0, 0.28);
   --shadow-pop:
@@ -407,34 +410,39 @@ html[data-look='catppuccin-mocha'] .task-column.active {
   box-shadow: var(--shadow-soft) !important;
 }
 
-/* Islands Dark — JetBrains 2025.3 inspired: lighter tinted frame, darker uniform island panels.
-   Frame uses a color→gray radial reminiscent of JetBrains' "Project Gradient". */
+/* Islands Dark — liquid glass workstation with restrained hardware-terminal cues.
+   Near-black glass panels carry off-white chrome, phosphor LEDs, and amber/red
+   operational states without relying on the old blue application frame. */
 html[data-look='islands-dark'] {
-  --bg: radial-gradient(circle at 0% 0%, #3a76d6 0%, #2c3a4d 8%, #26282c 18%);
-  --bg-elevated: #181a1d;
-  --bg-input: #1e2126;
-  --bg-hover: #23262c;
-  --bg-selected: #25324d;
-  --bg-selected-subtle: #25324d40;
-  --border: #2c2f34;
-  --border-subtle: #232529;
-  --border-focus: #286cf5;
-  --fg: #bcbec4;
-  --fg-muted: #9a9da4;
-  --fg-subtle: #7a7e85;
-  --accent: #286cf5;
-  --accent-hover: #6d9df8;
-  --accent-hover-bg: #2468f2;
-  --accent-text: #ffffff;
-  --link: #6d9df8;
-  --success: #6aab73;
-  --error: #f75464;
-  --warning: #e8a33e;
-  --island-bg: #181a1d;
-  --island-border: #2c2f34;
-  --island-radius: 12px;
-  --task-container-bg: #181a1d;
-  --task-panel-bg: #181a1d;
+  --bg:
+    radial-gradient(100% 92% at 8% -8%, rgba(220, 232, 212, 0.15) 0%, transparent 36%),
+    radial-gradient(72% 58% at 102% 100%, rgba(255, 79, 69, 0.1) 0%, transparent 48%),
+    radial-gradient(68% 56% at 62% 4%, rgba(64, 238, 119, 0.08) 0%, transparent 44%),
+    linear-gradient(145deg, #070808 0%, #10110f 52%, #090a09 100%);
+  --bg-elevated: #161714;
+  --bg-input: #1b1d19;
+  --bg-hover: #242620;
+  --bg-selected: #2a2f27;
+  --bg-selected-subtle: #2a2f2760;
+  --border: #343731;
+  --border-subtle: #232520;
+  --border-focus: #f1eee4;
+  --fg: #f1efe8;
+  --fg-muted: #b9b5ac;
+  --fg-subtle: #827d73;
+  --accent: #f1eee4;
+  --accent-hover: #ffffff;
+  --accent-hover-bg: #f4f1e8;
+  --accent-text: #070807;
+  --link: #a9f7cc;
+  --success: #40ee77;
+  --error: #ff4f45;
+  --warning: #d6b35f;
+  --island-bg: #151613;
+  --island-border: #343731;
+  --island-radius: 18px;
+  --task-container-bg: #10110f;
+  --task-panel-bg: #151613;
 }
 
 /* Islands Light — the JetBrains-inspired Islands look on a light palette.

@@ -28,3 +28,4 @@ docs/
 
 # Local runtime state from memory/sidecar processes (not source)
 /data/
+.launch.log

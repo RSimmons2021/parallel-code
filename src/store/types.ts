@@ -75,6 +75,9 @@ export interface Project {
   coverageReportPath?: string;
   terminalBookmarks?: TerminalBookmark[];
   isGitRepo?: boolean; // undefined treated as true for backward compat
+  /** Absolute paths to design references (images, exported Figma frames, React
+   *  components) the agents should derive/match a design system from. */
+  designRefs?: string[];
 }
 
 export interface Agent {
@@ -260,6 +263,9 @@ export interface PersistedState {
   shareDockerAgentAuth?: boolean;
   askCodeProvider?: 'claude' | 'minimax';
   customAgents?: AgentDef[];
+  customBlueprints?: import('../lib/blueprints').Blueprint[];
+  defaultStackId?: string;
+  telemetry?: import('./telemetry').TelemetryEvent[];
   keybindingMigrationDismissed?: boolean;
   focusMode?: boolean;
   verboseLogging?: boolean;
@@ -316,6 +322,8 @@ export interface AppStore {
   activeAgentId: string | null;
   availableAgents: AgentDef[];
   customAgents: AgentDef[];
+  customBlueprints: import('../lib/blueprints').Blueprint[];
+  defaultStackId: string;
   showNewTaskDialog: boolean;
   sidebarVisible: boolean;
   /** User-dragged sizes keyed by `${persistKey}:${childId}`. Presence of an
@@ -333,6 +341,12 @@ export interface AppStore {
   placeholderFocusedButton: 'add-task' | 'add-terminal';
   showHelpDialog: boolean;
   showSettingsDialog: boolean;
+  showBlueprintGallery: boolean;
+  showFanout: boolean;
+  showHandoff: boolean;
+  showEvalArena: boolean;
+  showTelemetry: boolean;
+  telemetry: import('./telemetry').TelemetryEvent[];
   pendingAction: PendingAction | null;
   notification: string | null;
   completedTaskDate: string;
@@ -357,7 +371,7 @@ export interface AppStore {
   shareDockerAgentAuth: boolean;
   askCodeProvider: 'claude' | 'minimax';
   newTaskDropUrl: string | null;
-  newTaskPrefillPrompt: { prompt: string; projectId: string | null } | null;
+  newTaskPrefillPrompt: { prompt: string; projectId: string | null; name?: string } | null;
   missingProjectIds: Record<string, true>;
   remoteAccess: RemoteAccess;
   showArena: boolean;

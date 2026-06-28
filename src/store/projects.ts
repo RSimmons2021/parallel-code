@@ -66,6 +66,7 @@ export function updateProject(
       | 'coverageReportPath'
       | 'terminalBookmarks'
       | 'isGitRepo'
+      | 'designRefs'
     >
   >,
 ): void {
@@ -88,6 +89,7 @@ export function updateProject(
       if (updates.terminalBookmarks !== undefined)
         s.projects[idx].terminalBookmarks = updates.terminalBookmarks;
       if (updates.isGitRepo !== undefined) s.projects[idx].isGitRepo = updates.isGitRepo;
+      if (updates.designRefs !== undefined) s.projects[idx].designRefs = updates.designRefs;
     }),
   );
 }

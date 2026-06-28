@@ -6,6 +6,11 @@ import {
   removeProject,
   removeProjectWithTasks,
   toggleNewTaskDialog,
+  toggleBlueprintGallery,
+  toggleFanout,
+  toggleHandoff,
+  toggleEvalArena,
+  toggleTelemetry,
   setActiveTask,
   toggleSidebar,
   reorderTaskVisually,
@@ -677,6 +682,132 @@ export function Sidebar() {
             New Task
           </button>
         </Show>
+
+        {/* Always visible: opening with no project prompts to link one. */}
+        <button
+          class="icon-btn lg-phosphor"
+          onClick={() => toggleBlueprintGallery(true)}
+          title="Scaffold a production agent from a Studio Blueprint"
+          style={{
+            'margin-top': '6px',
+            background: 'color-mix(in srgb, var(--accent) 10%, transparent)',
+            border: `1px solid color-mix(in srgb, var(--accent) 30%, ${theme.border})`,
+            'border-radius': '8px',
+            padding: '8px 14px',
+            color: theme.fg,
+            cursor: 'pointer',
+            'font-size': sf(13),
+            'font-weight': '500',
+            display: 'flex',
+            'align-items': 'center',
+            'justify-content': 'center',
+            gap: '6px',
+            width: '100%',
+          }}
+        >
+          <span style={{ 'font-size': '13px' }}>✦</span>
+          Blueprints
+        </button>
+
+        <button
+          class="icon-btn"
+          onClick={() => toggleFanout(true)}
+          title="Spec → Build Fan-out: split a client brief into parallel agents"
+          style={{
+            'margin-top': '6px',
+            background: 'transparent',
+            border: `1px solid ${theme.border}`,
+            'border-radius': '8px',
+            padding: '8px 14px',
+            color: theme.fgMuted,
+            cursor: 'pointer',
+            'font-size': sf(13),
+            'font-weight': '500',
+            display: 'flex',
+            'align-items': 'center',
+            'justify-content': 'center',
+            gap: '6px',
+            width: '100%',
+          }}
+        >
+          <span style={{ 'font-size': '13px' }}>⑃</span>
+          Fan-out
+        </button>
+
+        <button
+          class="icon-btn"
+          onClick={() => toggleHandoff(true)}
+          title="Client Handoff & Deploy: package a built task for the client"
+          style={{
+            'margin-top': '6px',
+            background: 'transparent',
+            border: `1px solid ${theme.border}`,
+            'border-radius': '8px',
+            padding: '8px 14px',
+            color: theme.fgMuted,
+            cursor: 'pointer',
+            'font-size': sf(13),
+            'font-weight': '500',
+            display: 'flex',
+            'align-items': 'center',
+            'justify-content': 'center',
+            gap: '6px',
+            width: '100%',
+          }}
+        >
+          <span style={{ 'font-size': '13px' }}>📦</span>
+          Handoff
+        </button>
+
+        <button
+          class="icon-btn"
+          onClick={() => toggleEvalArena(true)}
+          title="Eval Arena: score a prompt against a golden dataset"
+          style={{
+            'margin-top': '6px',
+            background: 'transparent',
+            border: `1px solid ${theme.border}`,
+            'border-radius': '8px',
+            padding: '8px 14px',
+            color: theme.fgMuted,
+            cursor: 'pointer',
+            'font-size': sf(13),
+            'font-weight': '500',
+            display: 'flex',
+            'align-items': 'center',
+            'justify-content': 'center',
+            gap: '6px',
+            width: '100%',
+          }}
+        >
+          <span style={{ 'font-size': '13px' }}>🧪</span>
+          Eval Arena
+        </button>
+
+        <button
+          class="icon-btn"
+          onClick={() => toggleTelemetry(true)}
+          title="Telemetry: estimated cost, tokens & latency for Studio LLM calls"
+          style={{
+            'margin-top': '6px',
+            background: 'transparent',
+            border: `1px solid ${theme.border}`,
+            'border-radius': '8px',
+            padding: '8px 14px',
+            color: theme.fgMuted,
+            cursor: 'pointer',
+            'font-size': sf(13),
+            'font-weight': '500',
+            display: 'flex',
+            'align-items': 'center',
+            'justify-content': 'center',
+            gap: '6px',
+            width: '100%',
+          }}
+        >
+          <span style={{ 'font-size': '13px' }}>📊</span>
+          Telemetry
+        </button>
 
         {/* Tasks grouped by project */}
         <div

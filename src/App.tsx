@@ -11,6 +11,7 @@ import '@fontsource/space-grotesk/700.css';
 import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
 import './styles.css';
+import './styles/liquid-glass.css';
 import { onMount, onCleanup, createEffect, Show, ErrorBoundary, createSignal } from 'solid-js';
 import { invoke } from './lib/ipc';
 import { IPC } from '../electron/ipc/channels';
@@ -25,6 +26,12 @@ import { SettingsDialog } from './components/SettingsDialog';
 import { WindowTitleBar } from './components/WindowTitleBar';
 import { FocusModeTaskIndicators } from './components/FocusModeTaskIndicators';
 import { WindowResizeHandles } from './components/WindowResizeHandles';
+import { GlassFilter } from './components/GlassFilter';
+import { BlueprintGallery } from './components/BlueprintGallery';
+import { FanoutDialog } from './components/FanoutDialog';
+import { HandoffDialog } from './components/HandoffDialog';
+import { EvalArenaDialog } from './components/EvalArenaDialog';
+import { TelemetryDialog } from './components/TelemetryDialog';
 import { theme } from './lib/theme';
 import * as log from './lib/log';
 import {
@@ -550,7 +557,17 @@ function App() {
     });
 
     const handlePaste = (e: ClipboardEvent) => {
-      if (store.showNewTaskDialog || store.showHelpDialog || store.showSettingsDialog) return;
+      if (
+        store.showNewTaskDialog ||
+        store.showHelpDialog ||
+        store.showSettingsDialog ||
+        store.showBlueprintGallery ||
+        store.showFanout ||
+        store.showHandoff ||
+        store.showEvalArena ||
+        store.showTelemetry
+      )
+        return;
       const el = document.activeElement;
       if (
         el instanceof HTMLInputElement ||
@@ -804,6 +821,7 @@ function App() {
           overflow: 'hidden',
         }}
       >
+        <GlassFilter />
         <Show when={!isMac}>
           <WindowTitleBar />
         </Show>
@@ -929,6 +947,11 @@ function App() {
           open={store.showSettingsDialog}
           onClose={() => toggleSettingsDialog(false)}
         />
+        <BlueprintGallery />
+        <FanoutDialog />
+        <HandoffDialog />
+        <EvalArenaDialog />
+        <TelemetryDialog />
         <Show when={store.showArena}>
           <ArenaOverlay onClose={() => toggleArena(false)} />
         </Show>

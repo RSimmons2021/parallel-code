@@ -75,7 +75,45 @@ export {
   moveActiveTask,
   jumpToTask,
   toggleNewTaskDialog,
+  toggleBlueprintGallery,
+  launchBlueprint,
+  toggleFanout,
+  toggleHandoff,
+  toggleEvalArena,
+  toggleTelemetry,
 } from './navigation';
+export {
+  allBlueprints,
+  saveCustomBlueprint,
+  deleteCustomBlueprint,
+  duplicateBlueprint,
+  setDefaultStack,
+} from './blueprints';
+export {
+  dispatchFanout,
+  defaultModules,
+  autoSplitModules,
+  type FanoutModule,
+  type FanoutResult,
+} from './fanout';
+export { getDesignRefs, addDesignRefs, removeDesignRef } from './design';
+export { DEPLOY_TARGETS, handoffTargetsForProject, runHandoff, type ProjectTask } from './handoff';
+export {
+  runEval,
+  defaultCases,
+  emptyCase,
+  type EvalCase,
+  type EvalRun,
+  type EvalCaseResult,
+} from './eval';
+export {
+  clearTelemetry,
+  currentTelemetrySummary,
+  PRICING,
+  type TelemetryEvent,
+  type TelemetrySummary,
+  type TelemetryKind,
+} from './telemetry';
 export {
   registerFocusFn,
   unregisterFocusFn,

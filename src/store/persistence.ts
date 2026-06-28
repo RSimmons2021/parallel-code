@@ -15,6 +15,8 @@ import type {
   Project,
 } from './types';
 import type { AgentDef } from '../ipc/types';
+import type { Blueprint } from '../lib/blueprints';
+import type { TelemetryEvent } from './telemetry';
 import { inferDockerSource } from '../lib/docker';
 import { DEFAULT_TERMINAL_FONT } from '../lib/fonts';
 import { isLookPreset } from '../lib/look';
@@ -196,6 +198,9 @@ export async function saveState(): Promise<void> {
     dockerImage: store.dockerImage !== 'parallel-code-agent:latest' ? store.dockerImage : undefined,
     askCodeProvider: store.askCodeProvider !== 'claude' ? store.askCodeProvider : undefined,
     customAgents: store.customAgents.length > 0 ? [...store.customAgents] : undefined,
+    customBlueprints: store.customBlueprints.length > 0 ? [...store.customBlueprints] : undefined,
+    defaultStackId: store.defaultStackId !== 'langgraph' ? store.defaultStackId : undefined,
+    telemetry: store.telemetry.length > 0 ? store.telemetry : undefined,
     keybindingMigrationDismissed: store.keybindingMigrationDismissed || undefined,
     focusMode: store.focusMode || undefined,
     verboseLogging: store.verboseLogging || undefined,
@@ -365,6 +370,9 @@ interface LegacyPersistedState {
   askCodeProvider?: unknown;
   minimaxApiKey?: unknown;
   customAgents?: unknown;
+  customBlueprints?: unknown;
+  defaultStackId?: unknown;
+  telemetry?: unknown;
   terminals?: unknown;
   keybindingMigrationDismissed?: unknown;
   focusMode?: unknown;
@@ -603,6 +611,34 @@ export async function loadState(): Promise<void> {
             typeof (a as AgentDef).id === 'string' &&
             typeof (a as AgentDef).name === 'string' &&
             typeof (a as AgentDef).command === 'string',
+        );
+      }
+
+      // Restore custom blueprints
+      if (Array.isArray(raw.customBlueprints)) {
+        s.customBlueprints = raw.customBlueprints.filter(
+          (b: unknown): b is Blueprint =>
+            typeof b === 'object' &&
+            b !== null &&
+            typeof (b as Blueprint).id === 'string' &&
+            typeof (b as Blueprint).name === 'string' &&
+            typeof (b as Blueprint).buildPrompt === 'string',
+        );
+      }
+
+      if (typeof raw.defaultStackId === 'string') {
+        s.defaultStackId = raw.defaultStackId;
+      }
+
+      // Restore LLM telemetry (estimated cost/token/latency events)
+      if (Array.isArray(raw.telemetry)) {
+        s.telemetry = raw.telemetry.filter(
+          (e: unknown): e is TelemetryEvent =>
+            typeof e === 'object' &&
+            e !== null &&
+            typeof (e as TelemetryEvent).id === 'string' &&
+            typeof (e as TelemetryEvent).ts === 'number' &&
+            typeof (e as TelemetryEvent).latencyMs === 'number',
         );
       }
 

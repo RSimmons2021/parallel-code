@@ -1,4 +1,5 @@
 import { store, setStore } from './core';
+import { designRefsSection } from './design';
 import { getTaskFocusedPanel, setTaskFocusedPanel } from './focused-panel';
 import { showNotification } from './notification';
 import { pickAndAddProject } from './projects';
@@ -85,4 +86,65 @@ export function toggleNewTaskDialog(show?: boolean): void {
     setStore('newTaskPrefillPrompt', null);
   }
   setStore('showNewTaskDialog', shouldShow);
+}
+
+export function toggleBlueprintGallery(show?: boolean): void {
+  const shouldShow = show ?? !store.showBlueprintGallery;
+  if (shouldShow && store.projects.length === 0) {
+    showNotification('Add a project first');
+    pickAndAddProject();
+    return;
+  }
+  setStore('showBlueprintGallery', shouldShow);
+}
+
+export function toggleFanout(show?: boolean): void {
+  const shouldShow = show ?? !store.showFanout;
+  if (shouldShow && store.projects.length === 0) {
+    showNotification('Add a project first');
+    pickAndAddProject();
+    return;
+  }
+  setStore('showFanout', shouldShow);
+}
+
+export function toggleHandoff(show?: boolean): void {
+  const shouldShow = show ?? !store.showHandoff;
+  if (shouldShow && store.projects.length === 0) {
+    showNotification('Add a project first');
+    pickAndAddProject();
+    return;
+  }
+  setStore('showHandoff', shouldShow);
+}
+
+export function toggleEvalArena(show?: boolean): void {
+  const shouldShow = show ?? !store.showEvalArena;
+  if (shouldShow && store.projects.length === 0) {
+    showNotification('Add a project first');
+    pickAndAddProject();
+    return;
+  }
+  setStore('showEvalArena', shouldShow);
+}
+
+export function toggleTelemetry(show?: boolean): void {
+  setStore('showTelemetry', show ?? !store.showTelemetry);
+}
+
+/**
+ * Launch a Studio Blueprint: seed the New Task dialog with the blueprint's
+ * build brief (and name), then open it so the user can pick the project /
+ * agent / isolation and dispatch.
+ */
+export function launchBlueprint(prompt: string, name: string): void {
+  setStore('showBlueprintGallery', false);
+  const projectId = store.lastProjectId ?? store.projects[0]?.id ?? null;
+  const design = projectId ? designRefsSection(projectId) : '';
+  setStore('newTaskPrefillPrompt', {
+    prompt: prompt + design,
+    name,
+    projectId,
+  });
+  setStore('showNewTaskDialog', true);
 }

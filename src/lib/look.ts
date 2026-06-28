@@ -24,8 +24,8 @@ export interface LookPresetOption {
 export const LOOK_PRESETS: LookPresetOption[] = [
   {
     id: 'islands-dark',
-    label: 'Islands Dark',
-    description: 'JetBrains-inspired dark panels on a tinted frame',
+    label: 'Liquid Glass',
+    description: 'Black glass panels with terminal hardware accents',
     tone: 'dark',
   },
   {
