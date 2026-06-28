@@ -1,5 +1,6 @@
 import { createSignal, For, Show } from 'solid-js';
 import { Dialog } from './Dialog';
+import { Stack, Card, Button, Label, Divider, Field } from './primitives';
 import {
   store,
   toggleHandoff,
@@ -9,6 +10,7 @@ import {
   showNotification,
 } from '../store/store';
 import { theme } from '../lib/theme';
+import { space, text, font } from '../lib/tokens';
 
 /**
  * Client Handoff & Deploy — sends a tuned brief to a built task's agent to
@@ -19,6 +21,7 @@ export function HandoffDialog() {
   const [selected, setSelected] = createSignal('');
   const [targetId, setTargetId] = createSignal('docker');
   const [liveDeploy, setLiveDeploy] = createSignal(false);
+  const [embedEvals, setEmbedEvals] = createSignal(true);
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal('');
 
@@ -38,7 +41,12 @@ export function HandoffDialog() {
     setBusy(true);
     setError('');
     try {
-      await runHandoff({ taskId, deployTargetId: targetId(), liveDeploy: liveDeploy() });
+      await runHandoff({
+        taskId,
+        deployTargetId: targetId(),
+        liveDeploy: liveDeploy(),
+        embedEvals: embedEvals(),
+      });
       showNotification('Handoff brief sent to the agent');
       toggleHandoff(false);
     } catch (e) {
@@ -48,15 +56,7 @@ export function HandoffDialog() {
     }
   };
 
-  const labelStyle = {
-    display: 'block',
-    'font-family': 'var(--font-mono)',
-    'text-transform': 'uppercase' as const,
-    'letter-spacing': '0.12em',
-    'font-size': '10px',
-    color: theme.fgSubtle,
-    margin: '0 0 6px',
-  };
+  const selectStyle = { width: '100%', 'box-sizing': 'border-box' as const };
 
   return (
     <Dialog
@@ -64,77 +64,104 @@ export function HandoffDialog() {
       onClose={() => toggleHandoff(false)}
       width="min(680px, 94vw)"
       labelledBy="handoff-title"
+      panelStyle={{ padding: '0', gap: '0' }}
     >
-      <div style={{ padding: '22px 24px 20px', 'max-height': '86vh', 'overflow-y': 'auto' }}>
-        <span class="lg-label">Studio</span>
-        <h2
-          id="handoff-title"
-          style={{
-            margin: '2px 0 4px',
-            'font-family': 'var(--font-display)',
-            'font-size': '20px',
-            'font-weight': '700',
-            color: theme.fg,
-          }}
-        >
-          Client Handoff & Deploy
-        </h2>
-        <p
-          style={{
-            margin: '0 0 18px',
-            'font-size': '13px',
-            color: theme.fgMuted,
-            'max-width': '64ch',
-          }}
-        >
-          Send the building agent a brief to produce a client-ready handoff package — README,
-          architecture, deployment guide, and demo — and set up deployment for your target.
-        </p>
+      <Stack
+        gap={4}
+        style={{ padding: '22px 24px 20px', 'max-height': '86vh', 'overflow-y': 'auto' }}
+      >
+        <div>
+          <Label>Studio · Delivery</Label>
+          <h2
+            id="handoff-title"
+            style={{
+              margin: `${space(1)} 0 ${space(1)}`,
+              'font-family': font.display,
+              'font-size': text('xl'),
+              'font-weight': '700',
+              color: theme.fg,
+            }}
+          >
+            Client Handoff &amp; Deploy
+          </h2>
+          <p
+            style={{
+              margin: '0',
+              'font-size': text('sm'),
+              color: theme.fgMuted,
+              'max-width': '64ch',
+              'line-height': '1.5',
+            }}
+          >
+            Send the building agent a brief to produce a client-ready handoff package — README,
+            architecture, deployment guide, and demo — and set up deployment for your target.
+          </p>
+        </div>
 
         <Show
           when={tasks().length > 0}
           fallback={
-            <div
-              class="lg-glass"
-              style={{
-                padding: '16px',
-                'border-radius': '12px',
-                'font-size': '13px',
-                color: theme.fgMuted,
-              }}
-            >
+            <Card style={{ 'font-size': text('sm'), color: theme.fgMuted }}>
               No built tasks with an agent yet. Dispatch a Blueprint or a Fan-out first, then come
               back to package it.
-            </div>
+            </Card>
           }
         >
-          <label style={labelStyle}>Task to package</label>
-          <select
-            class="input-field"
-            value={effectiveTaskId()}
-            onChange={(e) => setSelected(e.currentTarget.value)}
-            style={{ width: '100%', 'box-sizing': 'border-box', 'margin-bottom': '14px' }}
-          >
-            <For each={tasks()}>{(t) => <option value={t.id}>{t.name}</option>}</For>
-          </select>
+          <Field label="Task to package">
+            <select
+              class="in-input"
+              value={effectiveTaskId()}
+              onChange={(e) => setSelected(e.currentTarget.value)}
+              style={selectStyle}
+            >
+              <For each={tasks()}>{(t) => <option value={t.id}>{t.name}</option>}</For>
+            </select>
+          </Field>
 
-          <label style={labelStyle}>Deploy target</label>
-          <select
-            class="input-field"
-            value={targetId()}
-            onChange={(e) => setTargetId(e.currentTarget.value)}
-            style={{ width: '100%', 'box-sizing': 'border-box', 'margin-bottom': '14px' }}
-          >
-            <For each={DEPLOY_TARGETS}>{(t) => <option value={t.id}>{t.name}</option>}</For>
-          </select>
+          <Field label="Deploy target">
+            <select
+              class="in-input"
+              value={targetId()}
+              onChange={(e) => setTargetId(e.currentTarget.value)}
+              style={selectStyle}
+            >
+              <For each={DEPLOY_TARGETS}>{(t) => <option value={t.id}>{t.name}</option>}</For>
+            </select>
+          </Field>
 
           <label
             style={{
               display: 'flex',
               'align-items': 'flex-start',
-              gap: '8px',
+              gap: space(2),
               cursor: 'pointer',
-              'font-size': '13px',
+              'font-size': text('sm'),
+              color: theme.fg,
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={embedEvals()}
+              onChange={(e) => setEmbedEvals(e.currentTarget.checked)}
+              style={{ 'margin-top': '2px' }}
+            />
+            <span>
+              Embed evals &amp; telemetry in the product
+              <span style={{ display: 'block', 'font-size': text('xs'), color: theme.fgMuted }}>
+                Ships a self-contained eval suite (from your golden dataset) + a metrics wrapper
+                into the client's repo, so their system carries its own quality + cost/latency
+                tracking.
+              </span>
+            </span>
+          </label>
+
+          <label
+            style={{
+              display: 'flex',
+              'align-items': 'flex-start',
+              gap: space(2),
+              cursor: 'pointer',
+              'font-size': text('sm'),
               color: theme.fg,
             }}
           >
@@ -147,7 +174,7 @@ export function HandoffDialog() {
             />
             <span>
               Run the deploy now
-              <span style={{ display: 'block', 'font-size': '11.5px', color: theme.warning }}>
+              <span style={{ display: 'block', 'font-size': text('xs'), color: theme.warning }}>
                 Off = prepare config + instructions only (safe). On = the agent will run the deploy
                 command (cloud-mutating, may incur cost).
               </span>
@@ -156,53 +183,19 @@ export function HandoffDialog() {
         </Show>
 
         <Show when={error()}>
-          <div style={{ 'margin-top': '12px', color: theme.error, 'font-size': '12.5px' }}>
-            {error()}
-          </div>
+          <div style={{ color: theme.error, 'font-size': text('sm') }}>{error()}</div>
         </Show>
 
-        <div
-          style={{
-            display: 'flex',
-            'justify-content': 'flex-end',
-            gap: '10px',
-            'margin-top': '20px',
-          }}
-        >
-          <button
-            onClick={() => toggleHandoff(false)}
-            style={{
-              padding: '9px 18px',
-              background: theme.bgInput,
-              border: `1px solid ${theme.border}`,
-              'border-radius': '8px',
-              color: theme.fgMuted,
-              cursor: 'pointer',
-              'font-size': '14px',
-            }}
-          >
+        <Divider />
+        <Stack direction="row" justify="flex-end" gap={2}>
+          <Button variant="secondary" onClick={() => toggleHandoff(false)}>
             Cancel
-          </button>
-          <button
-            class="btn-primary"
-            disabled={busy() || tasks().length === 0}
-            onClick={generate}
-            style={{
-              padding: '9px 18px',
-              background: 'var(--accent)',
-              border: '1px solid transparent',
-              'border-radius': '8px',
-              color: 'var(--accent-text)',
-              cursor: busy() || tasks().length === 0 ? 'not-allowed' : 'pointer',
-              opacity: busy() || tasks().length === 0 ? '0.5' : '1',
-              'font-size': '14px',
-              'font-weight': '600',
-            }}
-          >
+          </Button>
+          <Button variant="primary" disabled={busy() || tasks().length === 0} onClick={generate}>
             {busy() ? 'Sending…' : 'Generate handoff'}
-          </button>
-        </div>
-      </div>
+          </Button>
+        </Stack>
+      </Stack>
     </Dialog>
   );
 }

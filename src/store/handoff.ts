@@ -1,6 +1,7 @@
 import { store } from './core';
 import { sendPrompt } from './tasks';
 import { effectiveAgentId } from './agent-select';
+import { getSuite, buildEmbedEvalsBrief } from './eval-suites';
 
 /**
  * Client handoff + deploy. Sends a tuned brief to an existing task's agent
@@ -117,11 +118,20 @@ export async function runHandoff(opts: {
   taskId: string;
   deployTargetId: string;
   liveDeploy: boolean;
+  embedEvals?: boolean;
 }): Promise<void> {
   const task = store.tasks[opts.taskId];
   if (!task) throw new Error('Task not found');
   const agentId = effectiveAgentId(task);
   if (!agentId) throw new Error('This task has no agent to send the handoff to');
-  const prompt = buildHandoffPrompt(getDeployTarget(opts.deployTargetId), opts.liveDeploy);
+  let prompt = buildHandoffPrompt(getDeployTarget(opts.deployTargetId), opts.liveDeploy);
+  // Optionally embed the studio's eval suite + telemetry into the client product
+  // so the delivered system carries its own quality gate and observability.
+  if (opts.embedEvals) {
+    const suite = getSuite(task.projectId);
+    if (suite && suite.cases.some((c) => c.input.trim())) {
+      prompt += `\n\n---\n\n${buildEmbedEvalsBrief(suite, store.defaultStackId)}`;
+    }
+  }
   await sendPrompt(task.id, agentId, prompt);
 }
