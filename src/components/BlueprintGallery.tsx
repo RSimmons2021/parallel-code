@@ -1,5 +1,6 @@
 import { createSignal, For, Show } from 'solid-js';
 import { Dialog } from './Dialog';
+import { Stack, Card, Button, Label, Field } from './primitives';
 import {
   store,
   toggleBlueprintGallery,
@@ -10,6 +11,7 @@ import {
   setDefaultStack,
 } from '../store/store';
 import { theme } from '../lib/theme';
+import { space, text, font } from '../lib/tokens';
 import { emptyBlueprint, type Blueprint } from '../lib/blueprints';
 import { STACK_PRESETS, composeBrief } from '../lib/stacks';
 import { BlueprintEditor } from './BlueprintEditor';
@@ -38,25 +40,21 @@ export function BlueprintGallery() {
         onClose={() => toggleBlueprintGallery(false)}
         width="min(920px, 92vw)"
         labelledBy="blueprint-gallery-title"
+        panelStyle={{ padding: '0', gap: '0' }}
       >
-        <div style={{ padding: '22px 24px 24px', 'max-height': '82vh', 'overflow-y': 'auto' }}>
-          <div
-            style={{
-              display: 'flex',
-              'align-items': 'flex-end',
-              'justify-content': 'space-between',
-              gap: '12px',
-              'margin-bottom': '16px',
-            }}
-          >
+        <Stack
+          gap={4}
+          style={{ padding: '22px 24px 24px', 'max-height': '82vh', 'overflow-y': 'auto' }}
+        >
+          <Stack direction="row" align="flex-end" justify="space-between" gap={3}>
             <div>
-              <span class="lg-label">Studio</span>
+              <Label>Studio · Catalog</Label>
               <h2
                 id="blueprint-gallery-title"
                 style={{
-                  margin: '2px 0 4px',
-                  'font-family': 'var(--font-display)',
-                  'font-size': '20px',
+                  margin: `${space(1)} 0 ${space(1)}`,
+                  'font-family': font.display,
+                  'font-size': text('xl'),
                   'font-weight': '700',
                   color: theme.fg,
                   'letter-spacing': '-0.01em',
@@ -67,9 +65,10 @@ export function BlueprintGallery() {
               <p
                 style={{
                   margin: '0',
-                  'font-size': '13px',
+                  'font-size': text('sm'),
                   color: theme.fgMuted,
                   'max-width': '60ch',
+                  'line-height': '1.5',
                 }}
               >
                 Scaffold a production-ready agent for a client — stack, architecture, deliverables,
@@ -77,59 +76,47 @@ export function BlueprintGallery() {
                 across engagements.
               </p>
             </div>
-            <div style={{ display: 'flex', 'align-items': 'flex-end', gap: '10px' }}>
-              <label style={{ display: 'flex', 'flex-direction': 'column', gap: '5px' }}>
-                <span class="lg-label" title="Framework every blueprint targets at dispatch">
-                  Studio stack
-                </span>
+            <Stack direction="row" align="flex-end" gap={2}>
+              <Field label="Studio stack" style={{ 'flex-shrink': '0' }}>
                 <select
-                  class="input-field"
+                  class="in-input"
                   value={store.defaultStackId}
                   onChange={(e) => setDefaultStack(e.currentTarget.value)}
-                  style={{ padding: '8px 10px', 'font-size': '13px', cursor: 'pointer' }}
+                  style={{ cursor: 'pointer' }}
+                  title="Framework every blueprint targets at dispatch"
                 >
                   <For each={STACK_PRESETS}>{(s) => <option value={s.id}>{s.name}</option>}</For>
                 </select>
-              </label>
-              <button
-                class="btn-secondary"
+              </Field>
+              <Button
+                variant="secondary"
                 onClick={() => setEditing(emptyBlueprint())}
-                style={{
-                  'white-space': 'nowrap',
-                  padding: '9px 14px',
-                  background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
-                  border: `1px solid color-mix(in srgb, var(--accent) 30%, ${theme.border})`,
-                  'border-radius': '8px',
-                  color: theme.fg,
-                  cursor: 'pointer',
-                  'font-size': '13px',
-                  'font-weight': '500',
-                }}
+                style={{ 'white-space': 'nowrap' }}
               >
                 + New Blueprint
-              </button>
-            </div>
-          </div>
+              </Button>
+            </Stack>
+          </Stack>
 
           <div
             style={{
               display: 'grid',
               'grid-template-columns': 'repeat(auto-fill, minmax(260px, 1fr))',
-              gap: '14px',
+              gap: space(3),
             }}
           >
             <For each={blueprints()}>
               {(bp) => (
-                <div
-                  class="lg-glass blueprint-card"
+                <Card
+                  radius={5}
+                  rise
+                  class="blueprint-card"
                   style={{
                     position: 'relative',
-                    padding: '16px',
-                    'border-radius': '14px',
                     color: theme.fg,
                     display: 'flex',
                     'flex-direction': 'column',
-                    gap: '10px',
+                    gap: space(2),
                     'min-height': '150px',
                   }}
                 >
@@ -138,10 +125,10 @@ export function BlueprintGallery() {
                     class="blueprint-card-actions"
                     style={{
                       position: 'absolute',
-                      top: '10px',
-                      right: '10px',
+                      top: space(2),
+                      right: space(2),
                       display: 'flex',
-                      gap: '4px',
+                      gap: space(1),
                     }}
                   >
                     <Show
@@ -164,6 +151,7 @@ export function BlueprintGallery() {
                   </div>
 
                   <button
+                    class="in-press"
                     onClick={() => choose(bp)}
                     title="Build this"
                     style={{
@@ -171,20 +159,22 @@ export function BlueprintGallery() {
                       cursor: 'pointer',
                       display: 'flex',
                       'flex-direction': 'column',
-                      gap: '10px',
+                      gap: space(2),
                       flex: '1',
                     }}
                   >
-                    <div style={{ display: 'flex', 'align-items': 'center', gap: '8px' }}>
-                      <span style={{ 'font-size': '26px', 'line-height': '1' }}>{bp.glyph}</span>
-                      <span class="lg-label" style={{ opacity: '0.8' }}>
-                        {bp.isCustom ? 'Custom' : bp.category}
+                    <div style={{ display: 'flex', 'align-items': 'center', gap: space(2) }}>
+                      <span style={{ 'font-size': text('2xl'), 'line-height': '1' }}>
+                        {bp.glyph}
                       </span>
+                      <Label style={{ opacity: '0.8' }}>
+                        {bp.isCustom ? 'Custom' : bp.category}
+                      </Label>
                     </div>
                     <div
                       style={{
-                        'font-family': 'var(--font-display)',
-                        'font-size': '15px',
+                        'font-family': font.display,
+                        'font-size': text('md'),
                         'font-weight': '600',
                         'line-height': '1.2',
                       }}
@@ -193,7 +183,7 @@ export function BlueprintGallery() {
                     </div>
                     <div
                       style={{
-                        'font-size': '12.5px',
+                        'font-size': text('sm'),
                         color: theme.fgMuted,
                         'line-height': '1.4',
                         flex: '1',
@@ -201,15 +191,15 @@ export function BlueprintGallery() {
                     >
                       {bp.tagline}
                     </div>
-                    <div style={{ display: 'flex', 'flex-wrap': 'wrap', gap: '5px' }}>
+                    <div style={{ display: 'flex', 'flex-wrap': 'wrap', gap: space(1) }}>
                       <For each={bp.stack}>
                         {(s) => (
                           <span
                             style={{
-                              'font-family': 'var(--font-mono)',
-                              'font-size': '10px',
-                              padding: '2px 7px',
-                              'border-radius': '6px',
+                              'font-family': font.mono,
+                              'font-size': text('2xs'),
+                              padding: `2px 7px`,
+                              'border-radius': 'var(--radius-1)',
                               background: 'color-mix(in srgb, var(--accent) 12%, transparent)',
                               border:
                                 '1px solid color-mix(in srgb, var(--accent) 22%, transparent)',
@@ -223,11 +213,11 @@ export function BlueprintGallery() {
                       </For>
                     </div>
                   </button>
-                </div>
+                </Card>
               )}
             </For>
           </div>
-        </div>
+        </Stack>
       </Dialog>
 
       <Show when={editing()}>
@@ -241,6 +231,7 @@ function CardAction(props: { title: string; glyph: string; onClick: () => void }
   return (
     <button
       title={props.title}
+      class="in-press"
       onClick={(e) => {
         e.stopPropagation();
         props.onClick();
@@ -253,8 +244,8 @@ function CardAction(props: { title: string; glyph: string; onClick: () => void }
         display: 'flex',
         'align-items': 'center',
         'justify-content': 'center',
-        'border-radius': '6px',
-        'font-size': '12px',
+        'border-radius': 'var(--radius-1)',
+        'font-size': text('sm'),
         background: 'color-mix(in srgb, var(--bg-elevated) 70%, transparent)',
         border: '1px solid var(--glass-hairline)',
       }}

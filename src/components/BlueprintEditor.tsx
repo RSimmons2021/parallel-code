@@ -1,6 +1,8 @@
 import { createSignal, For } from 'solid-js';
 import { Dialog } from './Dialog';
+import { Stack, Button, Label, Divider, Field, Input, Textarea } from './primitives';
 import { theme } from '../lib/theme';
+import { space, text, font } from '../lib/tokens';
 import { BLUEPRINT_CATEGORIES, type Blueprint } from '../lib/blueprints';
 import { saveCustomBlueprint } from '../store/store';
 
@@ -40,16 +42,6 @@ export function BlueprintEditor(props: { blueprint: Blueprint; onClose: () => vo
     props.onClose();
   };
 
-  const labelStyle = {
-    display: 'block',
-    'font-family': 'var(--font-mono)',
-    'text-transform': 'uppercase' as const,
-    'letter-spacing': '0.12em',
-    'font-size': '10px',
-    color: theme.fgSubtle,
-    margin: '0 0 5px',
-  };
-
   return (
     <Dialog
       open={true}
@@ -57,140 +49,92 @@ export function BlueprintEditor(props: { blueprint: Blueprint; onClose: () => vo
       width="min(760px, 92vw)"
       zIndex={1100}
       labelledBy="blueprint-editor-title"
+      panelStyle={{ padding: '0', gap: '0' }}
     >
-      <div style={{ padding: '22px 24px 20px', 'max-height': '86vh', 'overflow-y': 'auto' }}>
-        <span class="lg-label">Studio · Blueprint</span>
-        <h2
-          id="blueprint-editor-title"
-          style={{
-            margin: '2px 0 16px',
-            'font-family': 'var(--font-display)',
-            'font-size': '18px',
-            'font-weight': '700',
-            color: theme.fg,
-          }}
-        >
-          {props.blueprint.name ? 'Edit Blueprint' : 'New Blueprint'}
-        </h2>
+      <Stack
+        gap={3}
+        style={{ padding: '22px 24px 20px', 'max-height': '86vh', 'overflow-y': 'auto' }}
+      >
+        <div>
+          <Label>Studio · Blueprint</Label>
+          <h2
+            id="blueprint-editor-title"
+            style={{
+              margin: `${space(1)} 0 0`,
+              'font-family': font.display,
+              'font-size': text('lg'),
+              'font-weight': '700',
+              color: theme.fg,
+            }}
+          >
+            {props.blueprint.name ? 'Edit Blueprint' : 'New Blueprint'}
+          </h2>
+        </div>
 
-        <div style={{ display: 'grid', 'grid-template-columns': '1fr 90px 1fr', gap: '12px' }}>
-          <div>
-            <label style={labelStyle}>Name</label>
-            <input
-              class="input-field"
+        <div style={{ display: 'grid', 'grid-template-columns': '1fr 90px 1fr', gap: space(3) }}>
+          <Field label="Name">
+            <Input
               value={name()}
               onInput={(e) => setName(e.currentTarget.value)}
               placeholder="Customer Onboarding Agent"
-              style={{ width: '100%', 'box-sizing': 'border-box' }}
             />
-          </div>
-          <div>
-            <label style={labelStyle}>Glyph</label>
-            <input
-              class="input-field"
+          </Field>
+          <Field label="Glyph">
+            <Input
               value={glyph()}
               onInput={(e) => setGlyph(e.currentTarget.value)}
               maxLength={2}
-              style={{ width: '100%', 'box-sizing': 'border-box', 'text-align': 'center' }}
+              style={{ 'text-align': 'center' }}
             />
-          </div>
-          <div>
-            <label style={labelStyle}>Category</label>
+          </Field>
+          <Field label="Category">
             <select
-              class="input-field"
+              class="in-input"
               value={category()}
               onChange={(e) => setCategory(e.currentTarget.value as Blueprint['category'])}
               style={{ width: '100%', 'box-sizing': 'border-box' }}
             >
               <For each={BLUEPRINT_CATEGORIES}>{(c) => <option value={c}>{c}</option>}</For>
             </select>
-          </div>
+          </Field>
         </div>
 
-        <div style={{ 'margin-top': '12px' }}>
-          <label style={labelStyle}>Tagline</label>
-          <input
-            class="input-field"
+        <Field label="Tagline">
+          <Input
             value={tagline()}
             onInput={(e) => setTagline(e.currentTarget.value)}
             placeholder="One-line pitch shown on the card"
-            style={{ width: '100%', 'box-sizing': 'border-box' }}
           />
-        </div>
+        </Field>
 
-        <div style={{ 'margin-top': '12px' }}>
-          <label style={labelStyle}>Stack (comma-separated)</label>
-          <input
-            class="input-field"
+        <Field label="Stack (comma-separated)">
+          <Input
             value={stack()}
             onInput={(e) => setStack(e.currentTarget.value)}
             placeholder="FastAPI, LangGraph, Claude"
-            style={{ width: '100%', 'box-sizing': 'border-box' }}
           />
-        </div>
+        </Field>
 
-        <div style={{ 'margin-top': '12px' }}>
-          <label style={labelStyle}>Build brief (sent to the coding agent)</label>
-          <textarea
-            class="input-field"
+        <Field label="Build brief (sent to the coding agent)">
+          <Textarea
+            mono
             value={buildPrompt()}
             onInput={(e) => setBuildPrompt(e.currentTarget.value)}
             placeholder="Objective, architecture, deliverables, acceptance criteria…"
-            style={{
-              width: '100%',
-              'box-sizing': 'border-box',
-              'min-height': '240px',
-              resize: 'vertical',
-              'font-family': 'var(--font-mono)',
-              'font-size': '12.5px',
-              'line-height': '1.5',
-            }}
+            style={{ 'min-height': '240px', 'font-size': text('sm'), 'line-height': '1.5' }}
           />
-        </div>
+        </Field>
 
-        <div
-          style={{
-            display: 'flex',
-            'justify-content': 'flex-end',
-            gap: '10px',
-            'margin-top': '18px',
-          }}
-        >
-          <button
-            class="btn-secondary"
-            onClick={() => props.onClose()}
-            style={{
-              padding: '9px 18px',
-              background: theme.bgInput,
-              border: `1px solid ${theme.border}`,
-              'border-radius': '8px',
-              color: theme.fgMuted,
-              cursor: 'pointer',
-              'font-size': '14px',
-            }}
-          >
+        <Divider />
+        <Stack direction="row" justify="flex-end" gap={2}>
+          <Button variant="secondary" onClick={() => props.onClose()}>
             Cancel
-          </button>
-          <button
-            class="btn-primary"
-            disabled={!canSave()}
-            onClick={save}
-            style={{
-              padding: '9px 18px',
-              background: 'var(--accent)',
-              border: '1px solid transparent',
-              'border-radius': '8px',
-              color: 'var(--accent-text)',
-              cursor: canSave() ? 'pointer' : 'not-allowed',
-              opacity: canSave() ? '1' : '0.5',
-              'font-size': '14px',
-              'font-weight': '600',
-            }}
-          >
+          </Button>
+          <Button variant="primary" disabled={!canSave()} onClick={save}>
             Save Blueprint
-          </button>
-        </div>
-      </div>
+          </Button>
+        </Stack>
+      </Stack>
     </Dialog>
   );
 }
