@@ -266,6 +266,10 @@ export interface PersistedState {
   customBlueprints?: import('../lib/blueprints').Blueprint[];
   defaultStackId?: string;
   telemetry?: import('./telemetry').TelemetryEvent[];
+  evalSuites?: import('./eval-suites').EvalSuite[];
+  assets?: import('./registry').Asset[];
+  registrySeeded?: boolean;
+  discoveries?: import('./discovery').Discovery[];
   keybindingMigrationDismissed?: boolean;
   focusMode?: boolean;
   verboseLogging?: boolean;
@@ -346,7 +350,15 @@ export interface AppStore {
   showHandoff: boolean;
   showEvalArena: boolean;
   showTelemetry: boolean;
+  showRegistry: boolean;
+  showDiscovery: boolean;
   telemetry: import('./telemetry').TelemetryEvent[];
+  evalSuites: import('./eval-suites').EvalSuite[];
+  assets: import('./registry').Asset[];
+  registrySeeded: boolean;
+  discoveries: import('./discovery').Discovery[];
+  /** A brief queued by the Discovery canvas to prefill the Fan-out spec. */
+  fanoutPrefillSpec: string | null;
   pendingAction: PendingAction | null;
   notification: string | null;
   completedTaskDate: string;

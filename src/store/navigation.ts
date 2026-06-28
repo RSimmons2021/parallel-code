@@ -132,6 +132,27 @@ export function toggleTelemetry(show?: boolean): void {
   setStore('showTelemetry', show ?? !store.showTelemetry);
 }
 
+export function toggleRegistry(show?: boolean): void {
+  setStore('showRegistry', show ?? !store.showRegistry);
+}
+
+export function toggleDiscovery(show?: boolean): void {
+  const shouldShow = show ?? !store.showDiscovery;
+  if (shouldShow && store.projects.length === 0) {
+    showNotification('Add a project first');
+    pickAndAddProject();
+    return;
+  }
+  setStore('showDiscovery', shouldShow);
+}
+
+/** Queue a synthesized brief into the Fan-out dialog and open it. */
+export function sendSpecToFanout(spec: string): void {
+  setStore('fanoutPrefillSpec', spec);
+  setStore('showDiscovery', false);
+  setStore('showFanout', true);
+}
+
 /**
  * Launch a Studio Blueprint: seed the New Task dialog with the blueprint's
  * build brief (and name), then open it so the user can pick the project /

@@ -7,10 +7,12 @@ import {
   removeProjectWithTasks,
   toggleNewTaskDialog,
   toggleBlueprintGallery,
+  toggleDiscovery,
   toggleFanout,
   toggleHandoff,
   toggleEvalArena,
   toggleTelemetry,
+  toggleRegistry,
   setActiveTask,
   toggleSidebar,
   reorderTaskVisually,
@@ -685,6 +687,31 @@ export function Sidebar() {
 
         {/* Always visible: opening with no project prompts to link one. */}
         <button
+          class="icon-btn"
+          onClick={() => toggleDiscovery(true)}
+          title="Discovery → Spec: map the client's workflow, then synthesize a build brief"
+          style={{
+            'margin-top': '6px',
+            background: 'transparent',
+            border: `1px solid ${theme.border}`,
+            'border-radius': '8px',
+            padding: '8px 14px',
+            color: theme.fgMuted,
+            cursor: 'pointer',
+            'font-size': sf(13),
+            'font-weight': '500',
+            display: 'flex',
+            'align-items': 'center',
+            'justify-content': 'center',
+            gap: '6px',
+            width: '100%',
+          }}
+        >
+          <span style={{ 'font-size': '13px' }}>🗺</span>
+          Discovery
+        </button>
+
+        <button
           class="icon-btn lg-phosphor"
           onClick={() => toggleBlueprintGallery(true)}
           title="Scaffold a production agent from a Studio Blueprint"
@@ -807,6 +834,31 @@ export function Sidebar() {
         >
           <span style={{ 'font-size': '13px' }}>📊</span>
           Telemetry
+        </button>
+
+        <button
+          class="icon-btn"
+          onClick={() => toggleRegistry(true)}
+          title="Asset Registry: reusable, versioned prompts, guardrails, rubrics & snippets"
+          style={{
+            'margin-top': '6px',
+            background: 'transparent',
+            border: `1px solid ${theme.border}`,
+            'border-radius': '8px',
+            padding: '8px 14px',
+            color: theme.fgMuted,
+            cursor: 'pointer',
+            'font-size': sf(13),
+            'font-weight': '500',
+            display: 'flex',
+            'align-items': 'center',
+            'justify-content': 'center',
+            gap: '6px',
+            width: '100%',
+          }}
+        >
+          <span style={{ 'font-size': '13px' }}>◳</span>
+          Registry
         </button>
 
         {/* Tasks grouped by project */}

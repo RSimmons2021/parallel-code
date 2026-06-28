@@ -232,7 +232,9 @@ export function navigateRow(direction: 'up' | 'down'): void {
     store.showFanout ||
     store.showHandoff ||
     store.showEvalArena ||
-    store.showTelemetry
+    store.showTelemetry ||
+    store.showRegistry ||
+    store.showDiscovery
   )
     return;
 
@@ -354,7 +356,9 @@ export function navigateColumn(direction: 'left' | 'right'): void {
     store.showFanout ||
     store.showHandoff ||
     store.showEvalArena ||
-    store.showTelemetry
+    store.showTelemetry ||
+    store.showRegistry ||
+    store.showDiscovery
   )
     return;
 
@@ -479,7 +483,9 @@ export function navigateTask(direction: 'left' | 'right'): void {
     store.showFanout ||
     store.showHandoff ||
     store.showEvalArena ||
-    store.showTelemetry
+    store.showTelemetry ||
+    store.showRegistry ||
+    store.showDiscovery
   )
     return;
 

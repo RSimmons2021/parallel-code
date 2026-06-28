@@ -12,6 +12,7 @@ import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/500.css';
 import './styles.css';
 import './styles/liquid-glass.css';
+import './styles/instrument.css';
 import { onMount, onCleanup, createEffect, Show, ErrorBoundary, createSignal } from 'solid-js';
 import { invoke } from './lib/ipc';
 import { IPC } from '../electron/ipc/channels';
@@ -32,6 +33,8 @@ import { FanoutDialog } from './components/FanoutDialog';
 import { HandoffDialog } from './components/HandoffDialog';
 import { EvalArenaDialog } from './components/EvalArenaDialog';
 import { TelemetryDialog } from './components/TelemetryDialog';
+import { RegistryDialog } from './components/RegistryDialog';
+import { DiscoveryDialog } from './components/DiscoveryDialog';
 import { theme } from './lib/theme';
 import * as log from './lib/log';
 import {
@@ -565,7 +568,9 @@ function App() {
         store.showFanout ||
         store.showHandoff ||
         store.showEvalArena ||
-        store.showTelemetry
+        store.showTelemetry ||
+        store.showRegistry ||
+        store.showDiscovery
       )
         return;
       const el = document.activeElement;
@@ -952,6 +957,8 @@ function App() {
         <HandoffDialog />
         <EvalArenaDialog />
         <TelemetryDialog />
+        <RegistryDialog />
+        <DiscoveryDialog />
         <Show when={store.showArena}>
           <ArenaOverlay onClose={() => toggleArena(false)} />
         </Show>

@@ -17,6 +17,9 @@ import type {
 import type { AgentDef } from '../ipc/types';
 import type { Blueprint } from '../lib/blueprints';
 import type { TelemetryEvent } from './telemetry';
+import type { EvalSuite } from './eval-suites';
+import type { Asset } from './registry';
+import type { Discovery } from './discovery';
 import { inferDockerSource } from '../lib/docker';
 import { DEFAULT_TERMINAL_FONT } from '../lib/fonts';
 import { isLookPreset } from '../lib/look';
@@ -201,6 +204,10 @@ export async function saveState(): Promise<void> {
     customBlueprints: store.customBlueprints.length > 0 ? [...store.customBlueprints] : undefined,
     defaultStackId: store.defaultStackId !== 'langgraph' ? store.defaultStackId : undefined,
     telemetry: store.telemetry.length > 0 ? store.telemetry : undefined,
+    evalSuites: store.evalSuites.length > 0 ? store.evalSuites : undefined,
+    assets: store.assets.length > 0 ? store.assets : undefined,
+    registrySeeded: store.registrySeeded || undefined,
+    discoveries: store.discoveries.length > 0 ? store.discoveries : undefined,
     keybindingMigrationDismissed: store.keybindingMigrationDismissed || undefined,
     focusMode: store.focusMode || undefined,
     verboseLogging: store.verboseLogging || undefined,
@@ -373,6 +380,10 @@ interface LegacyPersistedState {
   customBlueprints?: unknown;
   defaultStackId?: unknown;
   telemetry?: unknown;
+  evalSuites?: unknown;
+  assets?: unknown;
+  registrySeeded?: unknown;
+  discoveries?: unknown;
   terminals?: unknown;
   keybindingMigrationDismissed?: unknown;
   focusMode?: unknown;
@@ -639,6 +650,45 @@ export async function loadState(): Promise<void> {
             typeof (e as TelemetryEvent).id === 'string' &&
             typeof (e as TelemetryEvent).ts === 'number' &&
             typeof (e as TelemetryEvent).latencyMs === 'number',
+        );
+      }
+
+      // Restore persisted eval suites (golden datasets, prompt versions, runs)
+      if (Array.isArray(raw.evalSuites)) {
+        s.evalSuites = raw.evalSuites.filter(
+          (e: unknown): e is EvalSuite =>
+            typeof e === 'object' &&
+            e !== null &&
+            typeof (e as EvalSuite).id === 'string' &&
+            typeof (e as EvalSuite).projectId === 'string' &&
+            Array.isArray((e as EvalSuite).cases) &&
+            Array.isArray((e as EvalSuite).runs),
+        );
+      }
+
+      // Restore the asset registry (reusable, versioned prompts/snippets)
+      if (Array.isArray(raw.assets)) {
+        s.assets = raw.assets.filter(
+          (a: unknown): a is Asset =>
+            typeof a === 'object' &&
+            a !== null &&
+            typeof (a as Asset).id === 'string' &&
+            typeof (a as Asset).kind === 'string' &&
+            typeof (a as Asset).body === 'string' &&
+            Array.isArray((a as Asset).versions),
+        );
+      }
+      s.registrySeeded = raw.registrySeeded === true;
+
+      // Restore Discovery canvases (per-project workflow maps)
+      if (Array.isArray(raw.discoveries)) {
+        s.discoveries = raw.discoveries.filter(
+          (d: unknown): d is Discovery =>
+            typeof d === 'object' &&
+            d !== null &&
+            typeof (d as Discovery).id === 'string' &&
+            typeof (d as Discovery).projectId === 'string' &&
+            Array.isArray((d as Discovery).steps),
         );
       }
 

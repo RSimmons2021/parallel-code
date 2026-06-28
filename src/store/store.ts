@@ -81,6 +81,9 @@ export {
   toggleHandoff,
   toggleEvalArena,
   toggleTelemetry,
+  toggleRegistry,
+  toggleDiscovery,
+  sendSpecToFanout,
 } from './navigation';
 export {
   allBlueprints,
@@ -99,13 +102,30 @@ export {
 export { getDesignRefs, addDesignRefs, removeDesignRef } from './design';
 export { DEPLOY_TARGETS, handoffTargetsForProject, runHandoff, type ProjectTask } from './handoff';
 export {
-  runEval,
-  defaultCases,
+  runCase,
+  aggregateRun,
   emptyCase,
   type EvalCase,
   type EvalRun,
   type EvalCaseResult,
 } from './eval';
+export {
+  getSuite,
+  getOrCreateSuite,
+  updateSuiteFields,
+  commitPromptVersion,
+  restorePromptVersion,
+  latestVersion,
+  latestRun,
+  runSuiteEval,
+  deleteSuiteRun,
+  setHumanVerdict,
+  exportDatasetJson,
+  buildEmbedEvalsBrief,
+  type EvalSuite,
+  type EvalRunRecord,
+  type PromptVersion,
+} from './eval-suites';
 export {
   clearTelemetry,
   currentTelemetrySummary,
@@ -114,6 +134,33 @@ export {
   type TelemetrySummary,
   type TelemetryKind,
 } from './telemetry';
+export {
+  getAsset,
+  createAsset,
+  updateAssetFields,
+  deleteAsset,
+  duplicateAsset,
+  commitAssetVersion,
+  restoreAssetVersion,
+  latestAssetVersion,
+  markAssetUsed,
+  captureAsset,
+  searchAssets,
+  seedRegistryIfNeeded,
+  type Asset,
+  type AssetVersion,
+} from './registry';
+export {
+  getDiscovery,
+  getOrCreateDiscovery,
+  updateDiscoveryFields,
+  composeDiscoveryBrief,
+  refineDiscoveryBrief,
+  emptyStep,
+  type Discovery,
+  type WorkflowStep,
+  type StepActor,
+} from './discovery';
 export {
   registerFocusFn,
   unregisterFocusFn,
