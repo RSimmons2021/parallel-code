@@ -1,5 +1,7 @@
-import { createSignal, For, Show } from 'solid-js';
+import { createEffect, createSignal, For, Show } from 'solid-js';
+import { setStore } from '../store/core';
 import { Dialog } from './Dialog';
+import { Stack, Card, Button, Label, Divider, Field, Input, Textarea } from './primitives';
 import {
   store,
   toggleFanout,
@@ -15,6 +17,7 @@ import {
   type FanoutModule,
 } from '../store/store';
 import { theme } from '../lib/theme';
+import { space, text, font } from '../lib/tokens';
 import { STACK_PRESETS } from '../lib/stacks';
 import { openDialog } from '../lib/dialog';
 
@@ -29,6 +32,14 @@ export function FanoutDialog() {
   const [loading, setLoading] = createSignal(false);
   const [splitting, setSplitting] = createSignal(false);
   const [error, setError] = createSignal('');
+
+  // Consume a brief queued by the Discovery canvas.
+  createEffect(() => {
+    if (store.showFanout && store.fanoutPrefillSpec) {
+      setSpec(store.fanoutPrefillSpec);
+      setStore('fanoutPrefillSpec', null);
+    }
+  });
 
   const projectId = () => store.lastProjectId ?? store.projects[0]?.id;
   const designRefs = () => {
@@ -87,8 +98,8 @@ export function FanoutDialog() {
 
   const dispatch = async () => {
     if (!canDispatch()) return;
-    const projectId = store.lastProjectId ?? store.projects[0]?.id;
-    if (!projectId) {
+    const pid = store.lastProjectId ?? store.projects[0]?.id;
+    if (!pid) {
       setError('Link a project first');
       return;
     }
@@ -101,7 +112,7 @@ export function FanoutDialog() {
           name: m.name.trim(),
           responsibility: m.responsibility.trim(),
         })),
-        projectId,
+        projectId: pid,
         stackId: store.defaultStackId,
       });
       if (res.failed.length > 0) {
@@ -121,41 +132,27 @@ export function FanoutDialog() {
     }
   };
 
-  const labelStyle = {
-    display: 'block',
-    'font-family': 'var(--font-mono)',
-    'text-transform': 'uppercase' as const,
-    'letter-spacing': '0.12em',
-    'font-size': '10px',
-    color: theme.fgSubtle,
-    margin: '0 0 5px',
-  };
-
   return (
     <Dialog
       open={store.showFanout}
       onClose={() => toggleFanout(false)}
       width="min(820px, 94vw)"
       labelledBy="fanout-title"
+      panelStyle={{ padding: '0', gap: '0' }}
     >
-      <div style={{ padding: '22px 24px 20px', 'max-height': '86vh', 'overflow-y': 'auto' }}>
-        <div
-          style={{
-            display: 'flex',
-            'align-items': 'flex-end',
-            'justify-content': 'space-between',
-            gap: '12px',
-            'margin-bottom': '16px',
-          }}
-        >
+      <Stack
+        gap={0}
+        style={{ padding: '22px 24px 20px', 'max-height': '86vh', 'overflow-y': 'auto' }}
+      >
+        <Stack direction="row" align="flex-end" justify="space-between" gap={3}>
           <div>
-            <span class="lg-label">Studio</span>
+            <Label>Studio · Orchestration</Label>
             <h2
               id="fanout-title"
               style={{
-                margin: '2px 0 4px',
-                'font-family': 'var(--font-display)',
-                'font-size': '20px',
+                margin: `${space(1)} 0 ${space(1)}`,
+                'font-family': font.display,
+                'font-size': text('xl'),
                 'font-weight': '700',
                 color: theme.fg,
               }}
@@ -165,183 +162,137 @@ export function FanoutDialog() {
             <p
               style={{
                 margin: '0',
-                'font-size': '13px',
+                'font-size': text('sm'),
                 color: theme.fgMuted,
                 'max-width': '64ch',
+                'line-height': '1.5',
               }}
             >
               Paste the client brief, refine the module breakdown, and dispatch one parallel agent
               per module — each in its own worktree, told what it owns and what the others build.
             </p>
           </div>
-          <label style={{ display: 'flex', 'flex-direction': 'column', gap: '5px' }}>
-            <span class="lg-label">Studio stack</span>
+          <Field label="Studio stack" style={{ 'flex-shrink': '0' }}>
             <select
-              class="input-field"
+              class="in-input"
               value={store.defaultStackId}
               onChange={(e) => setDefaultStack(e.currentTarget.value)}
-              style={{ padding: '8px 10px', 'font-size': '13px', cursor: 'pointer' }}
+              style={{ cursor: 'pointer' }}
             >
               <For each={STACK_PRESETS}>{(s) => <option value={s.id}>{s.name}</option>}</For>
             </select>
-          </label>
-        </div>
+          </Field>
+        </Stack>
 
-        <label style={labelStyle}>Client brief / spec</label>
-        <textarea
-          class="input-field"
-          value={spec()}
-          onInput={(e) => setSpec(e.currentTarget.value)}
-          placeholder="Describe what the client needs. e.g. 'A support agent that answers from our Zendesk + docs, escalates to a human when unsure, and posts in Slack…'"
-          style={{
-            width: '100%',
-            'box-sizing': 'border-box',
-            'min-height': '120px',
-            resize: 'vertical',
-            'font-size': '13px',
-            'line-height': '1.5',
-          }}
-        />
+        <Field label="Client brief / spec" style={{ 'margin-top': space(4) }}>
+          <Textarea
+            value={spec()}
+            onInput={(e) => setSpec(e.currentTarget.value)}
+            placeholder="Describe what the client needs. e.g. 'A support agent that answers from our Zendesk + docs, escalates to a human when unsure, and posts in Slack…'"
+            style={{ 'min-height': '120px', 'font-size': text('sm'), 'line-height': '1.5' }}
+          />
+        </Field>
 
-        <div
-          style={{
-            display: 'flex',
-            'align-items': 'center',
-            'justify-content': 'space-between',
-            margin: '18px 0 8px',
-          }}
+        <Stack
+          direction="row"
+          align="center"
+          justify="space-between"
+          style={{ margin: `${space(5)} 0 ${space(2)}` }}
         >
-          <span class="lg-label">Modules · {validModules().length} parallel agents</span>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              class="lg-phosphor"
+          <Label>Modules · {validModules().length} parallel agents</Label>
+          <Stack direction="row" gap={2}>
+            <Button
+              variant="primary"
+              size="sm"
               onClick={autoSplit}
               disabled={splitting()}
               title="Let the LLM decompose the brief into modules"
-              style={{
-                all: 'unset',
-                cursor: splitting() ? 'wait' : 'pointer',
-                'font-size': '12px',
-                color: 'var(--accent-text)',
-                padding: '3px 10px',
-                'border-radius': '6px',
-                background: 'var(--accent)',
-                opacity: splitting() ? '0.6' : '1',
-                'font-weight': '600',
-              }}
             >
               {splitting() ? 'Splitting…' : '✨ Auto-split from brief'}
-            </button>
-            <button
-              onClick={addModule}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                'font-size': '12px',
-                color: 'var(--accent)',
-                padding: '3px 8px',
-                'border-radius': '6px',
-                border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)',
-              }}
-            >
+            </Button>
+            <Button variant="ghost" size="sm" onClick={addModule}>
               + Add module
-            </button>
-          </div>
-        </div>
+            </Button>
+          </Stack>
+        </Stack>
 
-        <div style={{ display: 'flex', 'flex-direction': 'column', gap: '8px' }}>
+        <Stack gap={2}>
           <For each={modules()}>
             {(m, i) => (
-              <div
-                class="lg-glass"
+              <Card
+                pad={2}
+                radius={3}
                 style={{
                   display: 'grid',
                   'grid-template-columns': '210px 1fr 28px',
-                  gap: '8px',
+                  gap: space(2),
                   'align-items': 'start',
-                  padding: '8px',
-                  'border-radius': '10px',
                 }}
               >
-                <input
-                  class="input-field"
+                <Input
                   value={m.name}
                   onInput={(e) => updateModule(i(), { name: e.currentTarget.value })}
                   placeholder="Module name"
-                  style={{ width: '100%', 'box-sizing': 'border-box', 'font-size': '12.5px' }}
                 />
-                <input
-                  class="input-field"
+                <Input
                   value={m.responsibility}
                   onInput={(e) => updateModule(i(), { responsibility: e.currentTarget.value })}
                   placeholder="What this agent owns"
-                  style={{ width: '100%', 'box-sizing': 'border-box', 'font-size': '12.5px' }}
                 />
                 <button
                   title="Remove module"
+                  class="in-press"
                   onClick={() => removeModule(i())}
                   style={{
                     all: 'unset',
                     cursor: 'pointer',
                     'text-align': 'center',
                     color: theme.fgSubtle,
-                    'font-size': '14px',
+                    'font-size': text('md'),
                     'line-height': '34px',
                   }}
                 >
                   ✕
                 </button>
-              </div>
+              </Card>
             )}
           </For>
-        </div>
+        </Stack>
 
         {/* Design references (optional, per-project) */}
-        <div
-          style={{
-            display: 'flex',
-            'align-items': 'center',
-            'justify-content': 'space-between',
-            margin: '20px 0 8px',
-          }}
+        <Stack
+          direction="row"
+          align="center"
+          justify="space-between"
+          style={{ margin: `${space(5)} 0 ${space(2)}` }}
         >
-          <span class="lg-label" title="Images, exported Figma frames, React/CSS files">
-            Design references · {designRefs().length} · optional
-          </span>
-          <button
-            onClick={pickDesignFiles}
-            style={{
-              all: 'unset',
-              cursor: 'pointer',
-              'font-size': '12px',
-              color: 'var(--accent)',
-              padding: '3px 8px',
-              'border-radius': '6px',
-              border: '1px solid color-mix(in srgb, var(--accent) 30%, transparent)',
-            }}
-          >
+          <Label>
+            <span title="Images, exported Figma frames, React/CSS files">
+              Design references · {designRefs().length} · optional
+            </span>
+          </Label>
+          <Button variant="ghost" size="sm" onClick={pickDesignFiles}>
             + Add files
-          </button>
-        </div>
-        <p style={{ margin: '0 0 8px', 'font-size': '11.5px', color: theme.fgSubtle }}>
+          </Button>
+        </Stack>
+        <p style={{ margin: `0 0 ${space(2)}`, 'font-size': text('xs'), color: theme.fgSubtle }}>
           Agents derive a design system from these (palette, type, spacing, components). Images &
           React/CSS work directly; export Figma frames to PNG/SVG.
         </p>
         <Show when={designRefs().length > 0}>
-          <div style={{ display: 'flex', 'flex-wrap': 'wrap', gap: '6px' }}>
+          <Stack direction="row" wrap gap={1}>
             <For each={designRefs()}>
               {(p) => (
-                <span
-                  class="lg-glass"
+                <Card
+                  pad={1}
+                  radius={2}
                   title={p}
                   style={{
                     display: 'inline-flex',
                     'align-items': 'center',
-                    gap: '6px',
-                    padding: '4px 8px',
-                    'border-radius': '8px',
-                    'font-size': '11.5px',
-                    'font-family': 'var(--font-mono)',
+                    gap: space(1),
+                    'font-size': text('xs'),
+                    'font-family': font.mono,
                     'max-width': '240px',
                   }}
                 >
@@ -356,6 +307,7 @@ export function FanoutDialog() {
                   </span>
                   <button
                     title="Remove"
+                    class="in-press"
                     onClick={() => {
                       const id = projectId();
                       if (id) removeDesignRef(id, p);
@@ -364,66 +316,33 @@ export function FanoutDialog() {
                       all: 'unset',
                       cursor: 'pointer',
                       color: theme.fgSubtle,
-                      'font-size': '12px',
+                      'font-size': text('sm'),
                     }}
                   >
                     ✕
                   </button>
-                </span>
+                </Card>
               )}
             </For>
-          </div>
+          </Stack>
         </Show>
 
         <Show when={error()}>
-          <div style={{ 'margin-top': '12px', color: theme.error, 'font-size': '12.5px' }}>
+          <div style={{ 'margin-top': space(3), color: theme.error, 'font-size': text('sm') }}>
             {error()}
           </div>
         </Show>
 
-        <div
-          style={{
-            display: 'flex',
-            'align-items': 'center',
-            'justify-content': 'flex-end',
-            gap: '10px',
-            'margin-top': '18px',
-          }}
-        >
-          <button
-            onClick={() => toggleFanout(false)}
-            style={{
-              padding: '9px 18px',
-              background: theme.bgInput,
-              border: `1px solid ${theme.border}`,
-              'border-radius': '8px',
-              color: theme.fgMuted,
-              cursor: 'pointer',
-              'font-size': '14px',
-            }}
-          >
+        <Divider style={{ margin: `${space(4)} 0 ${space(3)}` }} />
+        <Stack direction="row" align="center" justify="flex-end" gap={2}>
+          <Button variant="secondary" onClick={() => toggleFanout(false)}>
             Cancel
-          </button>
-          <button
-            class="btn-primary"
-            disabled={!canDispatch()}
-            onClick={dispatch}
-            style={{
-              padding: '9px 18px',
-              background: 'var(--accent)',
-              border: '1px solid transparent',
-              'border-radius': '8px',
-              color: 'var(--accent-text)',
-              cursor: canDispatch() ? 'pointer' : 'not-allowed',
-              opacity: canDispatch() ? '1' : '0.5',
-              'font-size': '14px',
-              'font-weight': '600',
-            }}
-          >
+          </Button>
+          <Button variant="primary" disabled={!canDispatch()} onClick={dispatch}>
             {loading() ? 'Dispatching…' : `Dispatch ${validModules().length} agents`}
-          </button>
-        </div>
-      </div>
+          </Button>
+        </Stack>
+      </Stack>
     </Dialog>
   );
 }
