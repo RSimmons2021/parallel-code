@@ -12,7 +12,7 @@ import { askOnce, type AskProvider } from '../lib/ask-once';
  * approximations meant for relative comparison and budgeting, not billing.
  */
 
-export type TelemetryKind = 'eval' | 'judge' | 'autosplit';
+export type TelemetryKind = 'eval' | 'judge' | 'autosplit' | 'discovery';
 
 export interface TelemetryEvent {
   id: string;

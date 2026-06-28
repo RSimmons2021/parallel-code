@@ -1,5 +1,6 @@
 import { For, Show, createMemo } from 'solid-js';
 import { Dialog } from './Dialog';
+import { Stack, Card, Button, Label, Divider, Metric } from './primitives';
 import {
   store,
   toggleTelemetry,
@@ -9,18 +10,21 @@ import {
   type TelemetryKind,
 } from '../store/store';
 import { theme } from '../lib/theme';
+import { space, text, font } from '../lib/tokens';
 
 /**
  * Telemetry — estimated cost / token / latency for the Studio's LLM calls
- * (Eval Arena, the judge, and Fan-out auto-split). Numbers are approximations
- * (tokens from char length, cost from a per-provider price table) for relative
- * comparison and budgeting, not billing.
+ * (Eval Arena, the judge, and Fan-out auto-split). Composed from Instrument
+ * primitives: every number is a tabular readout, every gap a grid token.
+ * Numbers are approximations (tokens from char length, cost from a per-provider
+ * price table) for relative comparison and budgeting, not billing.
  */
 
 const KIND_LABEL: Record<TelemetryKind, string> = {
   eval: 'Eval cases',
   judge: 'LLM judge',
   autosplit: 'Auto-split',
+  discovery: 'Discovery',
 };
 
 function fmtUsd(n: number): string {
@@ -46,34 +50,8 @@ function fmtTime(ts: number): string {
 export function TelemetryDialog() {
   const summary = createMemo(() => currentTelemetrySummary());
   const events = () => store.telemetry;
-
-  const cardLabel = {
-    'font-family': 'var(--font-mono)',
-    'text-transform': 'uppercase' as const,
-    'letter-spacing': '0.12em',
-    'font-size': '9.5px',
-    color: theme.fgSubtle,
-    margin: '0 0 4px',
-  };
-  const cardValue = {
-    'font-family': 'var(--font-display)',
-    'font-size': '22px',
-    'font-weight': '700',
-    color: theme.fg,
-    'line-height': '1.1',
-  };
-
-  const Card = (props: { label: string; value: string; sub?: string }) => (
-    <div class="lg-glass" style={{ padding: '12px 14px', 'border-radius': '12px', flex: '1' }}>
-      <div style={cardLabel}>{props.label}</div>
-      <div style={cardValue}>{props.value}</div>
-      <Show when={props.sub}>
-        <div style={{ 'font-size': '11px', color: theme.fgMuted, 'margin-top': '3px' }}>
-          {props.sub}
-        </div>
-      </Show>
-    </div>
-  );
+  const successPct = () =>
+    summary().count ? Math.round((summary().okCount / summary().count) * 100) : 0;
 
   return (
     <Dialog
@@ -81,15 +59,19 @@ export function TelemetryDialog() {
       onClose={() => toggleTelemetry(false)}
       width="min(880px, 95vw)"
       labelledBy="telemetry-title"
+      panelStyle={{ padding: '0', gap: '0' }}
     >
-      <div style={{ padding: '22px 24px 20px', 'max-height': '88vh', 'overflow-y': 'auto' }}>
-        <span class="lg-label">Studio · Observability</span>
+      <Stack
+        style={{ padding: '22px 24px 20px', 'max-height': '88vh', 'overflow-y': 'auto' }}
+        gap={0}
+      >
+        <Label>Studio · Observability</Label>
         <h2
           id="telemetry-title"
           style={{
-            margin: '2px 0 4px',
-            'font-family': 'var(--font-display)',
-            'font-size': '20px',
+            margin: `${space(1)} 0 ${space(1)}`,
+            'font-family': font.display,
+            'font-size': text('xl'),
             'font-weight': '700',
             color: theme.fg,
           }}
@@ -98,10 +80,11 @@ export function TelemetryDialog() {
         </h2>
         <p
           style={{
-            margin: '0 0 16px',
-            'font-size': '13px',
+            margin: `0 0 ${space(4)}`,
+            'font-size': text('sm'),
             color: theme.fgMuted,
             'max-width': '74ch',
+            'line-height': '1.5',
           }}
         >
           Estimated spend and timing for Studio LLM calls (Eval Arena, the judge, and Fan-out
@@ -112,109 +95,109 @@ export function TelemetryDialog() {
         <Show
           when={summary().count > 0}
           fallback={
-            <div
-              class="lg-glass"
-              style={{
-                padding: '28px',
-                'border-radius': '12px',
-                'text-align': 'center',
-                color: theme.fgMuted,
-                'font-size': '13px',
-              }}
+            <Card
+              pad={6}
+              style={{ 'text-align': 'center', color: theme.fgMuted, 'font-size': text('sm') }}
             >
               No LLM calls recorded yet. Run an eval or a Fan-out auto-split and the metrics will
               show up here.
-            </div>
+            </Card>
           }
         >
-          {/* Headline cards */}
-          <div
-            style={{ display: 'flex', gap: '10px', 'margin-bottom': '10px', 'flex-wrap': 'wrap' }}
-          >
-            <Card
-              label="Est. cost"
-              value={fmtUsd(summary().totalCostUsd)}
-              sub={`${summary().count} calls`}
-            />
-            <Card
-              label="Tokens"
-              value={fmtTokens(summary().totalTokens)}
-              sub={`${fmtTokens(summary().promptTokens)} in · ${fmtTokens(summary().outputTokens)} out`}
-            />
-            <Card label="Avg latency" value={fmtMs(summary().avgLatencyMs)} sub="per call" />
-            <Card label="p95 latency" value={fmtMs(summary().p95LatencyMs)} sub="slowest 5%" />
-            <Card
-              label="Success"
-              value={`${summary().count ? Math.round((summary().okCount / summary().count) * 100) : 0}%`}
-              sub={`${summary().okCount}/${summary().count} ok`}
-            />
-          </div>
+          {/* Headline readouts */}
+          <Stack direction="row" gap={2} wrap>
+            <Card grow rise>
+              <Metric
+                label="Est. cost"
+                value={fmtUsd(summary().totalCostUsd)}
+                sub={`${summary().count} calls`}
+              />
+            </Card>
+            <Card grow rise>
+              <Metric
+                label="Tokens"
+                value={fmtTokens(summary().totalTokens)}
+                sub={`${fmtTokens(summary().promptTokens)} in · ${fmtTokens(summary().outputTokens)} out`}
+              />
+            </Card>
+            <Card grow rise>
+              <Metric label="Avg latency" value={fmtMs(summary().avgLatencyMs)} sub="per call" />
+            </Card>
+            <Card grow rise>
+              <Metric label="p95 latency" value={fmtMs(summary().p95LatencyMs)} sub="slowest 5%" />
+            </Card>
+            <Card grow rise>
+              <Metric
+                label="Success"
+                value={`${successPct()}%`}
+                tone={
+                  successPct() >= 90
+                    ? theme.success
+                    : successPct() >= 60
+                      ? theme.warning
+                      : theme.error
+                }
+                sub={`${summary().okCount}/${summary().count} ok`}
+              />
+            </Card>
+          </Stack>
 
           {/* Per-feature breakdown */}
-          <span class="lg-label" style={{ display: 'block', margin: '16px 0 8px' }}>
+          <Label style={{ display: 'block', margin: `${space(5)} 0 ${space(2)}` }}>
             By feature
-          </span>
-          <div style={{ display: 'flex', 'flex-direction': 'column', gap: '6px' }}>
+          </Label>
+          <Stack gap={1}>
             <For each={summary().byKind}>
               {(b) => (
-                <div
-                  class="lg-glass"
+                <Card
+                  pad={3}
+                  radius={3}
                   style={{
                     display: 'grid',
                     'grid-template-columns': '1.4fr 0.7fr 1fr 1fr',
-                    gap: '8px',
+                    gap: space(2),
                     'align-items': 'center',
-                    padding: '9px 12px',
-                    'border-radius': '10px',
-                    'font-size': '12.5px',
+                    'font-size': text('sm'),
                   }}
                 >
                   <span style={{ color: theme.fg, 'font-weight': '600' }}>
                     {KIND_LABEL[b.kind] ?? b.kind}
                   </span>
-                  <span style={{ color: theme.fgMuted }}>{b.count}×</span>
-                  <span style={{ color: theme.fgMuted, 'font-family': 'var(--font-mono)' }}>
+                  <span class="in-tnum" style={{ color: theme.fgMuted }}>
+                    {b.count}×
+                  </span>
+                  <span class="in-tnum" style={{ color: theme.fgMuted, 'font-family': font.mono }}>
                     {fmtTokens(b.tokens)} tok
                   </span>
                   <span
-                    style={{
-                      color: theme.fg,
-                      'font-family': 'var(--font-mono)',
-                      'text-align': 'right',
-                    }}
+                    class="in-tnum"
+                    style={{ color: theme.fg, 'font-family': font.mono, 'text-align': 'right' }}
                   >
                     {fmtUsd(b.costUsd)} · {fmtMs(b.avgLatencyMs)}
                   </span>
-                </div>
+                </Card>
               )}
             </For>
-          </div>
+          </Stack>
 
-          {/* Recent events */}
-          <span class="lg-label" style={{ display: 'block', margin: '16px 0 8px' }}>
+          {/* Recent calls */}
+          <Label style={{ display: 'block', margin: `${space(5)} 0 ${space(2)}` }}>
             Recent calls · {events().length}
-          </span>
-          <div
-            style={{
-              display: 'flex',
-              'flex-direction': 'column',
-              gap: '4px',
-              'max-height': '260px',
-              'overflow-y': 'auto',
-            }}
-          >
+          </Label>
+          <Stack gap={1} style={{ 'max-height': '260px', 'overflow-y': 'auto' }}>
             <For each={events().slice(0, 60)}>
               {(e) => (
                 <div
+                  class="in-tnum"
                   style={{
                     display: 'grid',
                     'grid-template-columns': '52px 84px 1fr 70px 70px 56px',
-                    gap: '8px',
+                    gap: space(2),
                     'align-items': 'center',
-                    padding: '6px 10px',
-                    'border-radius': '8px',
-                    'font-size': '11.5px',
-                    'font-family': 'var(--font-mono)',
+                    padding: `${space(2)} ${space(3)}`,
+                    'border-radius': 'var(--radius-2)',
+                    'font-size': text('xs'),
+                    'font-family': font.mono,
                     background: 'color-mix(in srgb, var(--bg-elevated) 40%, transparent)',
                     'border-left': `2px solid ${e.ok ? theme.success : theme.error}`,
                     color: theme.fgMuted,
@@ -241,57 +224,28 @@ export function TelemetryDialog() {
                 </div>
               )}
             </For>
-          </div>
+          </Stack>
         </Show>
 
-        <div
-          style={{
-            display: 'flex',
-            'align-items': 'center',
-            'justify-content': 'flex-end',
-            gap: '10px',
-            'margin-top': '20px',
-          }}
-        >
+        <Divider style={{ margin: `${space(5)} 0 ${space(3)}` }} />
+        <Stack direction="row" gap={2} align="center">
           <span
-            style={{ 'font-size': '11px', color: theme.fgSubtle, 'margin-right': 'auto' }}
+            style={{ 'font-size': text('xs'), color: theme.fgSubtle, 'margin-right': 'auto' }}
             title="Estimated rates per 1M tokens"
           >
             Rates: Claude ${PRICING.claude.inputPerMTok}/${PRICING.claude.outputPerMTok} · MiniMax $
             {PRICING.minimax.inputPerMTok}/${PRICING.minimax.outputPerMTok} per Mtok (in/out, est.)
           </span>
           <Show when={summary().count > 0}>
-            <button
-              onClick={() => clearTelemetry()}
-              style={{
-                padding: '9px 16px',
-                background: 'transparent',
-                border: `1px solid ${theme.border}`,
-                'border-radius': '8px',
-                color: theme.fgMuted,
-                cursor: 'pointer',
-                'font-size': '13px',
-              }}
-            >
+            <Button variant="ghost" onClick={() => clearTelemetry()}>
               Clear
-            </button>
+            </Button>
           </Show>
-          <button
-            onClick={() => toggleTelemetry(false)}
-            style={{
-              padding: '9px 18px',
-              background: theme.bgInput,
-              border: `1px solid ${theme.border}`,
-              'border-radius': '8px',
-              color: theme.fg,
-              cursor: 'pointer',
-              'font-size': '14px',
-            }}
-          >
+          <Button variant="secondary" onClick={() => toggleTelemetry(false)}>
             Close
-          </button>
-        </div>
-      </div>
+          </Button>
+        </Stack>
+      </Stack>
     </Dialog>
   );
 }
